@@ -50,13 +50,27 @@ namespace UnityMMO
 			Spawned = false;
 		}
 
+		public void Update(float dt)
+		{
+			if (!Spawned)
+			{
+				return;
+			}
+		}
+
 		public void WriteFullState(Bitstream.Buffer stream)
 		{
 
 		}
 
-		public void WriteUnreliableUpdate(Bitstream.Buffer stream)
+		public bool WriteReliableUpdate(Bitstream.Buffer stream)
 		{
+			return false;
+		}
+
+		public bool WriteUnreliableUpdate(Bitstream.Buffer stream)
+		{
+			return false;
 		}
     }
 }
