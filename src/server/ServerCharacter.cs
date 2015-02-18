@@ -1,4 +1,5 @@
 using System;
+using netki;
 
 namespace UnityMMO
 {
@@ -30,7 +31,8 @@ namespace UnityMMO
         public ServerCharacterData Data;
         public Vector3 Position;
         public Vector3 Velocity;
-        public float Heading;
+        public float Heading = 0;
+		public bool Spawned = false;
 
         // controller
         public Controller Controller;
@@ -38,9 +40,23 @@ namespace UnityMMO
         public ServerCharacter(ServerCharacterData data)
         {
             Data = data;
-            Position = data.StartPosition;
-            Velocity = new Vector3(0, 0, 0);
-            Heading = 0;
-        }
+			ResetFromData(data);
+		}
+
+		public void ResetFromData(ServerCharacterData data)
+		{
+			Position = Data.StartPosition;
+			Velocity = new Vector3(0, 0, 0);
+			Spawned = false;
+		}
+
+		public void WriteFullState(Bitstream.Buffer stream)
+		{
+
+		}
+
+		public void WriteUnreliableUpdate(Bitstream.Buffer stream)
+		{
+		}
     }
 }
