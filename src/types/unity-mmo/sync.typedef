@@ -1,0 +1,15 @@
+MMOComponentDesc @netki
+{
+	string EntityID
+	string Component
+}
+
+MMOComponentTable @netki
+{
+	MMOComponentDesc[] Table
+}
+
+MMOCharacterUpdate @netki
+{
+	byte[] DataBuffer
+}
