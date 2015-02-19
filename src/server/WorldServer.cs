@@ -93,7 +93,7 @@ namespace UnityMMO
 					{
 						outp = Bitstream.Buffer.Make(new byte[1024]);
 						UpdateMangling.BlockHeader(outp, UpdateMangling.UPDATE_FILTER);
-						Bitstream.PutBits(outp, 8, _updateIteration);
+						Bitstream.PutBits(outp, 24, _updateIteration);
 					}
 
 					Bitstream.PutBits(outp, 15, (uint)i);
@@ -111,30 +111,49 @@ namespace UnityMMO
 		}
 
 		// Characters in view.
-		private void UpdateUnreliable(WorldObserver obs)
+		private void UpdateUnreliableAll()
 		{
-			// Reliable state update
-			//   1. Character enters filter, send whole enter state.
-			//   2. Character exits filter, send whole disappear state.
-			Bitstream.Buffer outp = null;
+			// Unreliable state udptae
+			//   1. All characters write (maybe) unreliable updates 
+			Bitstream.Buffer[] outs = new Bitstream.Buffer[_activeCharacters.Count];
+			Bitstream.Buffer next = null;
 			for (int i = 0; i < _activeCharacters.Count; i++)
 			{
-				if (obs.CharacterFilter[i])
+				if (next == null)
 				{
-					if (outp == null)
-					{
-						outp = Bitstream.Buffer.Make(new byte[1024]);
-						UpdateMangling.BlockHeader(outp, UpdateMangling.UPDATE_CHARACTERS);
-						Bitstream.PutBits(outp, 8, _updateIteration);
-					}
-
-					Bitstream.PutBits(outp, 15, (uint)i);
-					_activeCharacters[i].WriteUnreliableUpdate(outp);
+					next = Bitstream.Buffer.Make(new byte[64]);
+				}
+				if (_activeCharacters[i].WriteUnreliableUpdate(next))
+				{
+					outs[i] = next;
+					next = null;
 				}
 			}
 
-			if (outp != null)
-				obs.UpdatesUnreliable.Add(outp);
+			foreach (WorldObserver obs in _observers)
+			{
+				Bitstream.Buffer output = null;
+				for (int i=0;i<_activeCharacters.Count;i++)
+				{
+					if (obs.CharacterFilter[i])
+					{
+						if (output == null)
+						{
+							output = Bitstream.Buffer.Make(new byte[512]);
+							UpdateMangling.BlockHeader(output, UpdateMangling.UPDATE_CHARACTERS);
+							Bitstream.PutBits(output, 24, _updateIteration);
+						}
+						// character index
+						Bitstream.PutBits(output, 16, i);
+						Bitstream.Insert(output, outs[i]);
+					}
+				}
+
+				if (output != null)
+				{
+					obs.UpdatesUnreliable.Add(output);
+				}
+			}
 		}
     }
 }
