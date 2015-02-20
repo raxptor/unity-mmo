@@ -14,9 +14,11 @@ namespace UnityMMO
 
 	public interface ILevelQuery
 	{
+		/*
 		bool IsValidLocation(Vector3 position);
 		bool CanNavigate(Vector3 from, Vector3 to);
 		Vector3[] Navigate(Vector3 from, Vector3 to);
+		*/
 	}
 
     public class WorldServer

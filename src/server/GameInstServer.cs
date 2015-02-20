@@ -23,10 +23,11 @@ namespace UnityMMO
 		int _maxPlayers;
 		string _version;
 
-		public GameInstServer(string version, int maxPlayers)
+		public GameInstServer(WorldServer srv, string version, int maxPlayers)
 		{
 			_version = version;
 			_maxPlayers = maxPlayers;
+			_worldServer = srv;
 		}
 
 		public bool CanPlayerReconnect(string playerId)
@@ -81,7 +82,9 @@ namespace UnityMMO
 				{
 					if (_slots.Count >= _maxPlayers)
 						return false;
+					// new 
 					s = new Slot();
+					_slots.Add(s);
 				}
 
 				s.PlayerId = playerId;
@@ -245,13 +248,16 @@ namespace UnityMMO
 					if (s.PacketLaneReliable != null)
 					{
 						// forward observer packets to lane
-						foreach (Bitstream.Buffer buf in s.Observer.UpdatesReliable)
-							s.PacketLaneReliable.Send(buf);
-						s.Observer.UpdatesReliable.Clear();
+						if (s.Observer != null)
+						{
+							foreach (Bitstream.Buffer buf in s.Observer.UpdatesReliable)
+								s.PacketLaneReliable.Send(buf);
+							s.Observer.UpdatesReliable.Clear();
 
-						foreach (Bitstream.Buffer buf in s.Observer.UpdatesUnreliable)
-							s.PacketLaneUnreliable.Send(buf);
-						s.Observer.UpdatesUnreliable.Clear();
+							foreach (Bitstream.Buffer buf in s.Observer.UpdatesUnreliable)
+								s.PacketLaneUnreliable.Send(buf);
+							s.Observer.UpdatesUnreliable.Clear();
+						}
 
 						netki.PacketLaneOutput transmit0 = delegate(netki.Bitstream.Buffer buf)
 						{
