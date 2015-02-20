@@ -40,7 +40,6 @@ namespace UnityMMO
 			lock (this)
 			{
 				_activeCharacters.Add(ch);
-				ch.Spawned = true;
 			}
 		}
 
@@ -81,7 +80,6 @@ namespace UnityMMO
 					if (ch.Controller == null && ch.Data.HumanControllable)
 					{
 						ch.Controller = cont;
-						ch.Spawned = true;
 						return ch;
 					}
 				}
@@ -100,6 +98,9 @@ namespace UnityMMO
 			{
 				foreach (ServerCharacter sc in _activeCharacters)
 				{
+					if (sc.Controller != null)
+						sc.Controller.ControlMe(sc);
+
 					sc.Update(dt);
 				}
 
@@ -133,8 +134,7 @@ namespace UnityMMO
 					if (outp == null)
 					{
 						outp = Bitstream.Buffer.Make(new byte[1024]);
-						Bitstream.PutBits(outp, DatagramCoding.TYPE_BITS, DatagramCoding.TYPE_UPDATE);
-						UpdateMangling.BlockHeader(outp, UpdateMangling.UPDATE_FILTER);
+						DatagramCoding.WriteUpdateBlockHeader(outp, UpdateBlock.Type.FILTER);
 						Bitstream.PutBits(outp, 24, _updateIteration);
 					}
 
@@ -186,8 +186,7 @@ namespace UnityMMO
 						if (output == null)
 						{
 							output = Bitstream.Buffer.Make(new byte[512]);
-							Bitstream.PutBits(output, DatagramCoding.TYPE_BITS, DatagramCoding.TYPE_UPDATE);
-							UpdateMangling.BlockHeader(output, UpdateMangling.UPDATE_CHARACTERS);
+							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
 							Bitstream.PutBits(output, 24, _updateIteration);
 						}
 						// character index

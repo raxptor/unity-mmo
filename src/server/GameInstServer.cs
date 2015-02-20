@@ -148,15 +148,15 @@ namespace UnityMMO
 				if (s != null)
 				{
 					// ---
-					if (length < 2)
+					if (length < 1)
 						return false;
 
-					if (datagram[offset] == 0x1 || datagram[offset] == 0x2)
+					if (datagram[0] == 0 || datagram[0] == 1)
 					{
 						Bitstream.Buffer buf = new Bitstream.Buffer();
 						buf.buf = datagram;
-						buf.bytepos = 1;
-						buf.bufsize = length - 1;
+						buf.bytepos = offset+1;
+						buf.bufsize = length;
 						if (datagram[offset] == 0)
 							s.PacketLaneReliable.Incoming(buf);
 						else if (datagram[offset] == 1)
@@ -195,9 +195,9 @@ namespace UnityMMO
 			if (b.error != 0)
 				return;
 
-			switch (type)
+			switch ((DatagramCoding.Type)type)
 			{
-				case DatagramCoding.TYPE_CONTROL:
+				case DatagramCoding.Type.EVENT:
 					if (s.Controller != null)
 					{
 						s.Controller.OnControlBlock(b);

@@ -2,3 +2,8 @@ MMOHumanAttachController @netki
 {
 	uint Character
 }
+
+MMOControllerSpawn @netki
+{
+	uint Character
+}

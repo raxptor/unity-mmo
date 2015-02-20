@@ -2,38 +2,53 @@ using netki;
 
 namespace UnityMMO
 {
-	public static class DatagramCoding
-	{
-		public const int TYPE_BITS = 3;
-		public const int TYPE_CONTROL = 1;
-		public const int TYPE_UPDATE  = 2;
-		public const int TYPE_PACKET  = 4;
-	}
-
-	public static class UpdateMangling
+	public static class UpdateBlock
 	{
 		public const int TYPE_BITS = 4;
-		public const uint UPDATE_FILTER      = 1;
-		public const uint UPDATE_CHARACTERS  = 2;
 
-		public static void BlockHeader(Bitstream.Buffer buf, uint type)
+		public enum Type
 		{
-			Bitstream.PutBits(buf, TYPE_BITS, type);
+			FILTER = 1,
+			CHARACTERS = 2
 		}
 	}
 
-	public static class ControlBlock
+	// these should be sent reliably.
+	public static class EventBlock
 	{
 		public const int TYPE_BITS = 10;
-		public const uint EVENT_SPAWN         = 0;
-		public const uint EVENT_FIRE          = 1;
-		public const uint EVENT_MOVE          = 2;
-		public const uint EVENT_CHANGE_WEAPON = 3;
-		public const uint EVENT_RELOAD        = 4;
 
-		public static void BlockHeader(Bitstream.Buffer buf, uint type)
+		public enum Type
 		{
-			Bitstream.PutBits(buf, TYPE_BITS, type);
+			SPAWN = 0,
+			MOVE,
+			FIRE,
+			RELOAD,
+			CHANGE_WEAPON
+		}
+	}
+
+	public static class DatagramCoding
+	{
+		public const int TYPE_BITS = 3;
+
+		public enum Type
+		{
+			EVENT   = 0,
+			UPDATE  = 1,
+			PACKET  = 2
+		}
+
+		public static void WriteEventBlockHeader(Bitstream.Buffer buf, EventBlock.Type st)
+		{
+			Bitstream.PutBits(buf, TYPE_BITS, (uint)Type.EVENT);
+			Bitstream.PutBits(buf, EventBlock.TYPE_BITS, (uint)st);
+		}
+
+		public static void WriteUpdateBlockHeader(Bitstream.Buffer buf, UpdateBlock.Type st)
+		{
+			Bitstream.PutBits(buf, TYPE_BITS, (uint)Type.UPDATE);
+			Bitstream.PutBits(buf, UpdateBlock.TYPE_BITS, (uint)st);
 		}
 	}
 }

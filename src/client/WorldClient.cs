@@ -80,22 +80,21 @@ namespace UnityMMO
 
 		private void OnLanePacket(Bitstream.Buffer b, bool reliable)
 		{
-			uint type = Bitstream.ReadBits(b, DatagramCoding.TYPE_BITS);
-			uint subtype;
+			DatagramCoding.Type type = (DatagramCoding.Type)Bitstream.ReadBits(b, DatagramCoding.TYPE_BITS);
 			if (b.error != 0)
 				return;
 
-			if (type == DatagramCoding.TYPE_UPDATE)
+			if (type == DatagramCoding.Type.UPDATE)
 			{
-				subtype = Bitstream.ReadBits(b, UpdateMangling.TYPE_BITS);
+				UpdateBlock.Type subtype = (UpdateBlock.Type) Bitstream.ReadBits(b, UpdateBlock.TYPE_BITS);
 				if (b.error != 0)
 					return;
 				switch (subtype)
 				{
-					case UpdateMangling.UPDATE_FILTER:
+					case UpdateBlock.Type.FILTER:
 						OnUpdateFilterBlock(b);
 						break;
-					case UpdateMangling.UPDATE_CHARACTERS:
+					case UpdateBlock.Type.CHARACTERS:
 						OnUpdateCharactersBlock(b);
 						break;
 					default:
@@ -131,6 +130,8 @@ namespace UnityMMO
 			GameNodeRawDatagramWrapper wrap = new GameNodeRawDatagramWrapper();
 			wrap.Data = new byte[1024];
 			wrap.Data[0] = lane;
+			wrap.Length = buf.bufsize - buf.bytepos;
+			wrap.Offset = buf.bytepos;
 			System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);
 			_client.Send(wrap, false);
 		}
@@ -182,6 +183,15 @@ namespace UnityMMO
 			_pl_unreliable.Update(deltaTime, delegate(netki.Bitstream.Buffer buf) {
 				SendLanePacket(1, buf);
 			});
+		}
+
+		// commands
+		public void DoSpawnCharacter()
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[64]);
+			DatagramCoding.WriteEventBlockHeader(cmd, EventBlock.Type.SPAWN);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
 		}
 	}
 }

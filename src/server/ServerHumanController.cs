@@ -14,21 +14,21 @@ namespace UnityMMO
 		{
 			foreach (Bitstream.Buffer buf in _blocks)
 			{
-				ExecControlBlock(buf, character);
+				ExecEventBlock(buf, character);
 			}
 		}
 
-		private void ExecControlBlock(Bitstream.Buffer buf, ServerCharacter character)
+		private void ExecEventBlock(Bitstream.Buffer buf, ServerCharacter character)
 		{
 			while (true)
 			{
-				uint evt = Bitstream.ReadBits(buf, ControlBlock.TYPE_BITS);
+				uint evt = Bitstream.ReadBits(buf, EventBlock.TYPE_BITS);
 				if (buf.error != 0)
 					break;
 
-				switch (evt)
+				switch ((EventBlock.Type)evt)
 				{
-					case ControlBlock.EVENT_MOVE:
+					case EventBlock.Type.MOVE:
 						{
 							Vector3 pos, vel;
 							NetUtil.ReadScaledVec3(buf, SCALING_MOVE, out pos);
@@ -40,10 +40,20 @@ namespace UnityMMO
 								character.Velocity = vel;
 								character.Heading = heading * 3.1415f / 128.0f;
 							}
+							break;
 						}
-						break;
-					case ControlBlock.EVENT_FIRE:
+					case EventBlock.Type.FIRE:
 						{
+							break;
+						}
+					case EventBlock.Type.SPAWN:
+						{
+							if (character.Spawned)
+							{
+								System.Console.WriteLine("Spawn: Player already spawned");
+								break;
+							}
+							character.Spawned = true;
 							break;
 						}
 				}
