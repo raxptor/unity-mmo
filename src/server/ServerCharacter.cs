@@ -3,9 +3,9 @@ using netki;
 
 namespace UnityMMO
 {
-    public interface Controller
+	public interface Controller
     {
-        void ControlMe(ServerCharacter character);
+		void ControlMe(ServerCharacter character);
     }
 
     public struct Vector3
@@ -17,18 +17,20 @@ namespace UnityMMO
         }
     }
 
-    public struct ServerCharacterData
-    {
-        public uint Id;
-        public string Prefab;
-        public string ScenePath;
-        public Vector3 StartPosition;
-    }
+	public struct ServerCharacterData
+	{
+		public uint Id;
+		public string Prefab;
+		public string ScenePath;
+		public Vector3 StartPosition;
+		public bool HumanControllable;
+	}
 
     public class ServerCharacter
     {
         // locations
         public ServerCharacterData Data;
+		public WorldServer World;
         public Vector3 Position;
         public Vector3 Velocity;
         public float Heading = 0;

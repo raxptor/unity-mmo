@@ -4,11 +4,6 @@ using netki;
 
 namespace UnityMMO
 {
-    public class LevelData
-    {
-        public List<ServerCharacterData> Characters; 
-    }
-
 	public class WorldObserver
 	{
 		public Vector3 FilterPosition;
@@ -17,20 +12,25 @@ namespace UnityMMO
 		public List<Bitstream.Buffer> UpdatesUnreliable = new List<Bitstream.Buffer>();
 	}
 
+	public interface ILevelQuery
+	{
+		bool IsValidLocation(Vector3 position);
+		bool CanNavigate(Vector3 from, Vector3 to);
+		Vector3[] Navigate(Vector3 from, Vector3 to);
+	}
+
     public class WorldServer
     {
-		List<ServerCharacter> _activeCharacters;
-		List<WorldObserver> _observers = new List<WorldObserver>();
+		public List<ServerCharacter> _activeCharacters;
+		public List<WorldObserver> _observers = new List<WorldObserver>();
+		public ILevelQuery _levelQueries;
 		float _timeAccum, _tickTime;
-		uint _updateIteration;
+		uint _updateIteration; // ticks two times per update.
 
-	
-        public WorldServer(LevelData data)
+        public WorldServer(ILevelQuery query)
         {
 			_tickTime = 0.020f;
 			_activeCharacters = new List<ServerCharacter>();
-            foreach (ServerCharacterData sc in data.Characters)
-				_activeCharacters.Add(new ServerCharacter(sc));
         }
 
 		public WorldObserver AddObserver()
@@ -53,6 +53,30 @@ namespace UnityMMO
 			}
 		}
 
+		public void StopControlling(ServerCharacter character)
+		{
+			lock (this)
+			{
+				character.Controller = null;
+			}
+		}
+
+		public ServerCharacter GrabHumanControllable(Controller cont)
+		{
+			lock (this)
+			{
+				foreach (ServerCharacter ch in _activeCharacters)
+				{
+					if (ch.Controller == null && ch.Data.HumanControllable)
+					{
+						ch.Controller = cont;
+						return ch;
+					}
+				}
+			}
+			return null;
+		}
+
 		public void Update(float dt)
 		{
 			DoGameUpdate(dt);
@@ -62,16 +86,21 @@ namespace UnityMMO
 		{
 			lock (this)
 			{
-				foreach (ServerCharacter in _activeCharacters)
+				foreach (ServerCharacter sc in _activeCharacters)
 				{
-					_activeCharacters.Update(dt);
+					sc.Update(dt);
 				}
+
+				_updateIteration++;
 
 				foreach (WorldObserver obs in _observers)
 				{
 					UpdateCharacterFilter(obs);
-					UpdateUnreliable(obs);
 				}
+
+				_updateIteration++;
+
+				UpdateUnreliableAll();
 			}
 		}
 
@@ -97,7 +126,7 @@ namespace UnityMMO
 					}
 
 					Bitstream.PutBits(outp, 15, (uint)i);
-					Bitstream.PutBits(outp, 1, (uint)target);
+					Bitstream.PutBits(outp, 1, (uint)(target ? 1 : 0));
 
 					if (target)
 					{
@@ -144,7 +173,7 @@ namespace UnityMMO
 							Bitstream.PutBits(output, 24, _updateIteration);
 						}
 						// character index
-						Bitstream.PutBits(output, 16, i);
+						Bitstream.PutBits(output, 16, (uint)i);
 						Bitstream.Insert(output, outs[i]);
 					}
 				}

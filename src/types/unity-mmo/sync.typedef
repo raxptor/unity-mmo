@@ -1,15 +1,4 @@
-MMOComponentDesc @netki
+MMOHumanAttachController @netki
 {
-	string EntityID
-	string Component
-}
-
-MMOComponentTable @netki
-{
-	MMOComponentDesc[] Table
-}
-
-MMOCharacterUpdate @netki
-{
-	byte[] DataBuffer
+	uint Character
 }
