@@ -38,6 +38,7 @@ namespace UnityMMO
 
         // controller
         public Controller Controller;
+		private static Random _r = new Random();
 
         public ServerCharacter(ServerCharacterData data)
         {
@@ -72,7 +73,8 @@ namespace UnityMMO
 
 		public bool WriteUnreliableUpdate(Bitstream.Buffer stream)
 		{
-			return false;
+			Bitstream.PutBits(stream, 32, (uint)_r.Next());
+			return true;
 		}
     }
 }

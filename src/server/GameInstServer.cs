@@ -261,19 +261,19 @@ namespace UnityMMO
 
 						netki.PacketLaneOutput transmit0 = delegate(netki.Bitstream.Buffer buf)
 						{
-							buf.Flip();
 							wrap.Data = new byte[1024];
 							wrap.Data[0] = 0;
 							System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);
+							wrap.Length = buf.bufsize + 1;
 							s.SendDatagram(wrap);
 						};
 
 						netki.PacketLaneOutput transmit1 = delegate(netki.Bitstream.Buffer buf)
 						{
-							buf.Flip();
 							wrap.Data = new byte[1024];
 							wrap.Data[0] = 1;
 							System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);
+							wrap.Length = buf.bufsize + 1;
 							s.SendDatagram(wrap);
 						};
 					

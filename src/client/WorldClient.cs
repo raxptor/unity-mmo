@@ -4,38 +4,36 @@ using System.Collections.Generic;
 
 namespace UnityMMO
 {
-	public delegate void OnNetworkBlock(uint iteration, Bitstream.Buffer block);
-
 	public class WorldClient
 	{
-		public class ClientCharacter
+		public interface Character
 		{
-			public OnNetworkBlock OnEventBlock;
-			public OnNetworkBlock OnUpdateBlock;
-			public OnNetworkBlock OnFullStateBlock;
-			public bool Filtered;
+			void OnEventBlock(uint iteration, Bitstream.Buffer block);
+			void OnUpdateBlock(uint iteration, Bitstream.Buffer block);
+			void OnFullStateBlock(uint iteration, Bitstream.Buffer block);
+			void OnFilterChange(bool filtered);
 		}
 
 		private IGameInstClient _client;
-		private Dictionary<int, ClientCharacter> _characters;
+		private Dictionary<int, Character> _characters;
 		private PacketLaneReliableOrdered _pl_reliable;
 		private PacketLaneUnreliableOrdered _pl_unreliable;
-		private ClientCharacter _controlled;
+		private Character _controlled;
 
 		public WorldClient(IGameInstClient client)
 		{
 			_client = client;
-			_characters = new Dictionary<int, ClientCharacter>();
+			_characters = new Dictionary<int, Character>();
 			_pl_reliable = new PacketLaneReliableOrdered();
 			_pl_unreliable = new PacketLaneUnreliableOrdered();
 		}
 
-		public void AddCharacter(int index, ClientCharacter character)
+		public void AddCharacter(int index, Character character)
 		{
 			_characters.Add(index, character);
 		}
 
-		public ClientCharacter GetControlledCharacter()
+		public Character GetControlledCharacter()
 		{
 			return _controlled;
 		}
@@ -52,16 +50,16 @@ namespace UnityMMO
 				if (b.error != 0 || character >= _characters.Count)
 					break;
 
-				ClientCharacter c = _characters[(int)character];
+				Character c = _characters[(int)character];
 
 				if (enabled == 1)
 				{
-					c.Filtered = true;
+					c.OnFilterChange(true);
 					c.OnFullStateBlock(iteration, b);
 				}
 				else
 				{
-					c.Filtered = false;
+					c.OnFilterChange(false);
 				}
 			}
 		}
@@ -75,7 +73,7 @@ namespace UnityMMO
 				if (b.error != 0 || character >= _characters.Count)
 					break;
 
-				ClientCharacter c = _characters[(int)character];
+				Character c = _characters[(int)character];
 				c.OnUpdateBlock(iteration, b);
 			}
 		}
@@ -146,11 +144,12 @@ namespace UnityMMO
 				{
 					GameNodeRawDatagramWrapper wrap = (GameNodeRawDatagramWrapper)p;
 					Bitstream.Buffer buf = new Bitstream.Buffer();
+					buf.buf = wrap.Data;
 					buf.bufsize = wrap.Length + wrap.Offset;
 					buf.bytepos = wrap.Offset + 1;
-					if (wrap.Data[wrap.Offset + 1] == 0)
+					if (wrap.Data[wrap.Offset] == 0)
 						_pl_reliable.Incoming(buf);
-					else if (wrap.Data[wrap.Offset + 1] == 1)
+					else if (wrap.Data[wrap.Offset] == 1)
 						_pl_unreliable.Incoming(buf);
 				}
 				else
