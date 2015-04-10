@@ -21,19 +21,19 @@ namespace UnityMMO
 		*/
 	}
 
-    public class WorldServer
-    {
+	public class WorldServer
+	{
 		public List<ServerCharacter> _activeCharacters;
 		public List<WorldObserver> _observers = new List<WorldObserver>();
 		public ILevelQuery _levelQueries;
-		float _timeAccum, _tickTime;
-		uint _updateIteration; // ticks two times per update.
 
-        public WorldServer(ILevelQuery query)
-        {
-			_tickTime = 0.020f;
+		// ticks two times per update.
+		uint _updateIteration;
+
+		public WorldServer(ILevelQuery query)
+		{
 			_activeCharacters = new List<ServerCharacter>();
-        }
+		}
 
 		public void AddCharacter(ServerCharacter ch)
 		{
@@ -53,6 +53,11 @@ namespace UnityMMO
 				_observers.Add(ws);
 			}
 			return ws;
+		}
+
+		public void AddSpawnpoint(Vector3 pos)
+		{
+		
 		}
 
 		public void RemoveObserver(WorldObserver obs)
@@ -179,7 +184,7 @@ namespace UnityMMO
 			foreach (WorldObserver obs in _observers)
 			{
 				Bitstream.Buffer output = null;
-				for (int i=0;i<_activeCharacters.Count;i++)
+				for (int i = 0; i < _activeCharacters.Count; i++)
 				{
 					if (outs[i] != null && obs.CharacterFilter[i])
 					{
@@ -202,5 +207,5 @@ namespace UnityMMO
 				}
 			}
 		}
-    }
+	}
 }
