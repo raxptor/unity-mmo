@@ -23,10 +23,9 @@ namespace UnityMMO
 	public class ServerCharacterData
 	{
 		public uint Id;
-		public string Prefab;
-		public string ScenePath;
-		public Vector3 StartPosition;
 		public bool HumanControllable;
+		public string Prefab;
+		public Vector3 StartPosition;
 	}
 
 	public class ServerCharacter
@@ -38,6 +37,7 @@ namespace UnityMMO
 		public Vector3 Velocity;
 		public float Heading = 0;
 		public bool Spawned = false;
+		public uint CharacterHash;
 
 		// controller
 		public Controller Controller;
@@ -51,12 +51,10 @@ namespace UnityMMO
 
 		public void ResetFromData(ServerCharacterData data)
 		{
-			Position = Data.StartPosition;
-			Velocity = new Vector3(0, 0, 0);
 			Spawned = false;
 		}
 
-		public void Update(float dt)
+		public virtual void Update(float dt)
 		{
 			if (!Spawned)
 			{
@@ -64,17 +62,18 @@ namespace UnityMMO
 			}
 		}
 
-		public void WriteFullState(Bitstream.Buffer stream)
+		public virtual void WriteFullState(Bitstream.Buffer stream)
 		{
-
+			// which character it is.
+			Bitstream.PutCompressedUint(stream, CharacterHash);
 		}
 
-		public bool WriteReliableUpdate(Bitstream.Buffer stream)
+		public virtual bool WriteReliableUpdate(Bitstream.Buffer stream)
 		{
 			return false;
 		}
 
-		public bool WriteUnreliableUpdate(Bitstream.Buffer stream)
+		public virtual bool WriteUnreliableUpdate(Bitstream.Buffer stream)
 		{
 			Bitstream.PutBits(stream, 32, (uint)_r.Next());
 			return true;

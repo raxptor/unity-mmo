@@ -48,11 +48,13 @@ namespace UnityMMO
 						}
 					case EventBlock.Type.SPAWN:
 						{
+							uint CharacterHash = Bitstream.ReadCompressedUint(buf);
 							if (character.Spawned)
 							{
-								System.Console.WriteLine("Spawn: Player already spawned");
+								Debug.Log("Spawn: Player already spawned");
 								break;
 							}
+							character.CharacterHash = CharacterHash;
 							character.Spawned = true;
 							break;
 						}

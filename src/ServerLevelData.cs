@@ -9,18 +9,9 @@ namespace UnityMMO
 		
 		public static void ParseCharacter(Bitstream.Buffer buf, ServerCharacterData data)
 		{
+			data.Id = Bitstream.ReadCompressedUint(buf);
 			data.HumanControllable = Bitstream.ReadBits(buf, 1) != 0;
-			
-			Vector3 pos, rot;
-			pos.x = Bitstream.ReadFloat(buf);
-			pos.y = Bitstream.ReadFloat(buf);
-			pos.z = Bitstream.ReadFloat(buf);
-			rot.x = Bitstream.ReadFloat(buf);
-			rot.y = Bitstream.ReadFloat(buf);
-			rot.z = Bitstream.ReadFloat(buf);
-			Bitstream.ReadFloat(buf);
-			
-			data.StartPosition = pos;
+			data.Prefab = Bitstream.ReadStringDumb(buf);
 		}
 	
 		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server, LoadServerCharacter loadCharacter)
@@ -28,9 +19,7 @@ namespace UnityMMO
 			int characters = Bitstream.ReadCompressedInt(buf);
 			for (int i=0;i<characters;i++)
 			{
-				int namelen = Bitstream.ReadCompressedInt(buf);
-				byte[] bytes = Bitstream.ReadBytes(buf, namelen);
-				ServerCharacter c = loadCharacter(buf, System.Text.UTF8Encoding.UTF8.GetString(bytes));
+				ServerCharacter c = loadCharacter(buf, "serv" + i);
 				server.AddCharacter(c);
 			}
 			int spawnpoints = Bitstream.ReadCompressedInt(buf);

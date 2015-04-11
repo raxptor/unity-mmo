@@ -261,6 +261,8 @@ namespace UnityMMO
 
 						netki.PacketLaneOutput transmit0 = delegate(netki.Bitstream.Buffer buf)
 						{
+							wrap = new netki.GameNodeRawDatagramWrapper();
+							Debug.Log("Sending reliable message gurk " + buf.bufsize + " bytes");
 							wrap.Data = new byte[1024];
 							wrap.Data[0] = 0;
 							System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);
@@ -270,6 +272,7 @@ namespace UnityMMO
 
 						netki.PacketLaneOutput transmit1 = delegate(netki.Bitstream.Buffer buf)
 						{
+							wrap = new netki.GameNodeRawDatagramWrapper();
 							wrap.Data = new byte[1024];
 							wrap.Data[0] = 1;
 							System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);

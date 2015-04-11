@@ -133,7 +133,7 @@ namespace UnityMMO
 			{
 				bool target = _activeCharacters[i].Spawned;
 				if (obs.CharacterFilter[i] != target)
-				{
+				{	
 					obs.CharacterFilter[i] = target;
 
 					if (outp == null)
