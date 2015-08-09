@@ -73,6 +73,8 @@ namespace UnityMMO
 				if (b.error != 0 || character >= _characters.Count)
 					break;
 
+				Bitstream.SyncByte(b);
+
 				Character c = _characters[(int)character];
 				c.OnUpdateBlock(iteration, b);
 			}
@@ -198,6 +200,16 @@ namespace UnityMMO
 			Bitstream.PutStringDumb(cmd, id);
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
+		}
+
+		public void SendReliable(Bitstream.Buffer buf)
+		{
+			_pl_reliable.Send(buf);
+		}
+
+		public void SendUnreliable(Bitstream.Buffer buf)
+		{
+			_pl_unreliable.Send(buf);
 		}
 	}
 }

@@ -53,6 +53,18 @@ namespace UnityMMO
 			Spawned = false;
 		}
 
+		// For testing only.
+		public void MirrorIt(ServerCharacter from)
+		{
+			Data = from.Data;
+			Position = from.Position;
+			Position.x = Position.x + 2;
+			Velocity = from.Velocity;
+			Heading = from.Heading;
+			Spawned = from.Spawned;
+			CharacterTypeId = from.CharacterTypeId;
+		}
+
 		public virtual void Update(float dt)
 		{
 			if (!Spawned)
@@ -65,6 +77,9 @@ namespace UnityMMO
 		{
 			// which character it is.
 			Bitstream.PutStringDumb(stream, CharacterTypeId);
+			Bitstream.PutFloat(stream, Position.x);
+			Bitstream.PutFloat(stream, Position.y);
+			Bitstream.PutFloat(stream, Position.z);
 		}
 
 		public virtual bool WriteReliableUpdate(Bitstream.Buffer stream)
@@ -74,7 +89,12 @@ namespace UnityMMO
 
 		public virtual bool WriteUnreliableUpdate(Bitstream.Buffer stream)
 		{
-			Bitstream.PutBits(stream, 32, (uint)_r.Next());
+			Bitstream.PutFloat(stream, Position.x);
+			Bitstream.PutFloat(stream, Position.y);
+			Bitstream.PutFloat(stream, Position.z);
+			Bitstream.PutFloat(stream, Velocity.x);
+			Bitstream.PutFloat(stream, Velocity.y);
+			Bitstream.PutFloat(stream, Velocity.z);
 			return true;
 		}
 	}

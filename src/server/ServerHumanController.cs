@@ -34,7 +34,7 @@ namespace UnityMMO
 							NetUtil.ReadScaledVec3(buf, SCALING_MOVE, out pos);
 							NetUtil.ReadScaledVec3(buf, SCALING_VELOCITY, out vel);
 							byte heading = (byte) Bitstream.ReadBits(buf, 8);
-							if (buf.error != 0)
+							if (buf.error == 0)
 							{
 								character.Position = pos;
 								character.Velocity = vel;
@@ -54,6 +54,15 @@ namespace UnityMMO
 								Debug.Log("Spawn: Player already spawned");
 								break;
 							}
+
+							Vector3 spawnPos;
+							if (!character.World.GetPointForHumanSpawn(out spawnPos))
+							{
+								Debug.Log("Spawn: Could not get spawn point");
+								break;
+							}
+
+							character.Position = spawnPos;
 							character.CharacterTypeId = CharacterId;
 							character.Spawned = true;
 							break;

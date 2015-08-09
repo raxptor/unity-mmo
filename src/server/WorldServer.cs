@@ -27,6 +27,7 @@ namespace UnityMMO
 		public List<WorldObserver> _observers = new List<WorldObserver>();
 		public ILevelQuery _levelQueries;
 		public outki.GameConfiguration _config;
+		public List<Vector3> _humanSpawnPoints = new List<Vector3>();
 
 		// ticks two times per update.
 		uint _updateIteration;
@@ -41,6 +42,7 @@ namespace UnityMMO
 		{
 			lock (this)
 			{
+				ch.World = this;
 				_activeCharacters.Add(ch);
 			}
 		}
@@ -59,7 +61,16 @@ namespace UnityMMO
 
 		public void AddSpawnpoint(Vector3 pos)
 		{
-		
+			_humanSpawnPoints.Add(pos);
+		}
+	
+		public bool GetPointForHumanSpawn(out Vector3 pos)
+		{
+			pos = new Vector3(1, 2, 3);
+			if (_humanSpawnPoints.Count == 0)
+				return false;
+			pos = _humanSpawnPoints[0];
+			return true;
 		}
 
 		public void RemoveObserver(WorldObserver obs)
@@ -109,6 +120,11 @@ namespace UnityMMO
 						sc.Controller.ControlMe(sc);
 
 					sc.Update(dt);
+				}
+
+				if (_activeCharacters.Count > 1)
+				{
+					_activeCharacters[3].MirrorIt(_activeCharacters[0]);
 				}
 
 				_updateIteration++;
@@ -198,6 +214,7 @@ namespace UnityMMO
 						}
 						// character index
 						Bitstream.PutBits(output, 16, (uint)i);
+						Bitstream.SyncByte(output);
 						Bitstream.Insert(output, outs[i]);
 					}
 				}
