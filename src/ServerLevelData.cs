@@ -11,7 +11,6 @@ namespace UnityMMO
 		{
 			data.Id = Bitstream.ReadCompressedUint(buf);
 			data.HumanControllable = Bitstream.ReadBits(buf, 1) != 0;
-			data.Prefab = Bitstream.ReadStringDumb(buf);
 		}
 	
 		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server, LoadServerCharacter loadCharacter)

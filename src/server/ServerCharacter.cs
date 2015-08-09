@@ -24,7 +24,6 @@ namespace UnityMMO
 	{
 		public uint Id;
 		public bool HumanControllable;
-		public string Prefab;
 		public Vector3 StartPosition;
 	}
 
@@ -37,7 +36,7 @@ namespace UnityMMO
 		public Vector3 Velocity;
 		public float Heading = 0;
 		public bool Spawned = false;
-		public uint CharacterHash;
+		public string CharacterTypeId;
 
 		// controller
 		public Controller Controller;
@@ -65,7 +64,7 @@ namespace UnityMMO
 		public virtual void WriteFullState(Bitstream.Buffer stream)
 		{
 			// which character it is.
-			Bitstream.PutCompressedUint(stream, CharacterHash);
+			Bitstream.PutStringDumb(stream, CharacterTypeId);
 		}
 
 		public virtual bool WriteReliableUpdate(Bitstream.Buffer stream)

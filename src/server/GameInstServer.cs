@@ -151,12 +151,12 @@ namespace UnityMMO
 					if (length < 1)
 						return false;
 
-					if (datagram[0] == 0 || datagram[0] == 1)
+					if (datagram[offset] == 0 || datagram[offset] == 1)
 					{
 						Bitstream.Buffer buf = new Bitstream.Buffer();
 						buf.buf = datagram;
-						buf.bytepos = offset+1;
-						buf.bufsize = length;
+						buf.bytepos = offset + 1;
+						buf.bufsize = offset + length;
 						if (datagram[offset] == 0)
 							s.PacketLaneReliable.Incoming(buf);
 						else if (datagram[offset] == 1)
@@ -262,7 +262,6 @@ namespace UnityMMO
 						netki.PacketLaneOutput transmit0 = delegate(netki.Bitstream.Buffer buf)
 						{
 							wrap = new netki.GameNodeRawDatagramWrapper();
-							Debug.Log("Sending reliable message gurk " + buf.bufsize + " bytes");
 							wrap.Data = new byte[1024];
 							wrap.Data[0] = 0;
 							System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);

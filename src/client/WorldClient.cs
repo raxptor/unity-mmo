@@ -131,8 +131,8 @@ namespace UnityMMO
 			GameNodeRawDatagramWrapper wrap = new GameNodeRawDatagramWrapper();
 			wrap.Data = new byte[1024];
 			wrap.Data[0] = lane;
-			wrap.Length = buf.bufsize - buf.bytepos;
-			wrap.Offset = buf.bytepos;
+			wrap.Length = (buf.bufsize - buf.bytepos) + 1;
+			wrap.Offset = 1;
 			System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);
 			_client.Send(wrap, false);
 		}
@@ -191,11 +191,11 @@ namespace UnityMMO
 		}
 
 		// commands
-		public void DoSpawnCharacter(uint CharacterHash)
+		public void DoSpawnCharacter(string id)
 		{
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
 			DatagramCoding.WriteEventBlockHeader(cmd, EventBlock.Type.SPAWN);
-			Bitstream.PutCompressedUint(cmd, CharacterHash);
+			Bitstream.PutStringDumb(cmd, id);
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
 		}

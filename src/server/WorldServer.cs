@@ -26,13 +26,15 @@ namespace UnityMMO
 		public List<ServerCharacter> _activeCharacters;
 		public List<WorldObserver> _observers = new List<WorldObserver>();
 		public ILevelQuery _levelQueries;
+		public outki.GameConfiguration _config;
 
 		// ticks two times per update.
 		uint _updateIteration;
 
-		public WorldServer(ILevelQuery query)
+		public WorldServer(ILevelQuery query, outki.GameConfiguration config)
 		{
 			_activeCharacters = new List<ServerCharacter>();
+			_config = config;
 		}
 
 		public void AddCharacter(ServerCharacter ch)
