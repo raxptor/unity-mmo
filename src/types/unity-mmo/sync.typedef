@@ -7,3 +7,9 @@ MMOControllerSpawn @netki
 {
 	uint Character
 }
+
+MMOPing @netki
+{
+	float Time
+	float Lag
+}

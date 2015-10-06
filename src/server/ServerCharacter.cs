@@ -5,7 +5,7 @@ namespace UnityMMO
 {
 	public interface Controller
 	{
-		void ControlMe(ServerCharacter character);
+		void ControlMe(uint iteration, ServerCharacter character);
 	}
 
 	public struct Vector3
@@ -25,6 +25,7 @@ namespace UnityMMO
 		public uint Id;
 		public bool HumanControllable;
 		public Vector3 StartPosition;
+		public Vector3 DefaultSpawnPos;
 	}
 
 	public class ServerCharacter
@@ -37,10 +38,13 @@ namespace UnityMMO
 		public float Heading = 0;
 		public bool Spawned = false;
 		public string CharacterTypeId;
+		public float TimeOffset = 0;
+		public bool GotNew = false;
+
+		public object ControllerData = null;
 
 		// controller
 		public Controller Controller;
-		private static Random _r = new Random();
 
 		public ServerCharacter(ServerCharacterData data)
 		{
@@ -63,6 +67,8 @@ namespace UnityMMO
 			Heading = from.Heading;
 			Spawned = from.Spawned;
 			CharacterTypeId = from.CharacterTypeId;
+			TimeOffset = from.TimeOffset;
+			GotNew = from.GotNew;
 		}
 
 		public virtual void Update(float dt)
@@ -80,6 +86,7 @@ namespace UnityMMO
 			Bitstream.PutFloat(stream, Position.x);
 			Bitstream.PutFloat(stream, Position.y);
 			Bitstream.PutFloat(stream, Position.z);
+			Bitstream.PutCompressedInt(stream, (int)TimeOffset);
 		}
 
 		public virtual bool WriteReliableUpdate(Bitstream.Buffer stream)
@@ -89,13 +96,19 @@ namespace UnityMMO
 
 		public virtual bool WriteUnreliableUpdate(Bitstream.Buffer stream)
 		{
-			Bitstream.PutFloat(stream, Position.x);
-			Bitstream.PutFloat(stream, Position.y);
-			Bitstream.PutFloat(stream, Position.z);
-			Bitstream.PutFloat(stream, Velocity.x);
-			Bitstream.PutFloat(stream, Velocity.y);
-			Bitstream.PutFloat(stream, Velocity.z);
-			return true;
+			if (GotNew)
+			{
+				Bitstream.PutFloat(stream, Position.x);
+				Bitstream.PutFloat(stream, Position.y);
+				Bitstream.PutFloat(stream, Position.z);
+				Bitstream.PutFloat(stream, Velocity.x);
+				Bitstream.PutFloat(stream, Velocity.y);
+				Bitstream.PutFloat(stream, Velocity.z);
+				Bitstream.PutCompressedInt(stream, (int)TimeOffset);
+				GotNew = false;
+				return true;
+			}
+			return false;
 		}
 	}
 }

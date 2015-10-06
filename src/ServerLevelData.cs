@@ -11,6 +11,9 @@ namespace UnityMMO
 		{
 			data.Id = Bitstream.ReadCompressedUint(buf);
 			data.HumanControllable = Bitstream.ReadBits(buf, 1) != 0;
+			data.DefaultSpawnPos.x = Bitstream.ReadFloat(buf);
+			data.DefaultSpawnPos.y = Bitstream.ReadFloat(buf);
+			data.DefaultSpawnPos.z = Bitstream.ReadFloat(buf);
 		}
 	
 		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server, LoadServerCharacter loadCharacter)
@@ -30,6 +33,12 @@ namespace UnityMMO
 				pos.z = Bitstream.ReadFloat(buf);
 				server.AddSpawnpoint(pos);
 			}
+
+			string editorPrefix = Bitstream.ReadStringDumb(buf);
+			string pathFile = Bitstream.ReadStringDumb(buf);
+			Debug.Log("Path file is [" + pathFile + "]");
+
+			server.LoadNavMesh(editorPrefix, pathFile);
 		}
 	}
 }

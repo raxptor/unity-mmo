@@ -26,11 +26,12 @@ namespace UnityMMO
 		public List<ServerCharacter> _activeCharacters;
 		public List<WorldObserver> _observers = new List<WorldObserver>();
 		public ILevelQuery _levelQueries;
+		public NavMeshMVP _navMVP;
+
 		public outki.GameConfiguration _config;
 		public List<Vector3> _humanSpawnPoints = new List<Vector3>();
 
-		// ticks two times per update.
-		uint _updateIteration;
+		DateTime _startTime = DateTime.Now;
 
 		public WorldServer(ILevelQuery query, outki.GameConfiguration config)
 		{
@@ -43,6 +44,11 @@ namespace UnityMMO
 			lock (this)
 			{
 				ch.World = this;
+				if (!ch.Data.HumanControllable)
+				{
+					ch.Controller = new ServerZombieAIController();
+				}
+
 				_activeCharacters.Add(ch);
 			}
 		}
@@ -112,36 +118,35 @@ namespace UnityMMO
 
 		private void DoGameUpdate(float dt)
 		{
+			uint iteration = (uint)((DateTime.Now - _startTime).Ticks * 1000 / TimeSpan.TicksPerSecond);
 			lock (this)
 			{
 				foreach (ServerCharacter sc in _activeCharacters)
 				{
 					if (sc.Controller != null)
-						sc.Controller.ControlMe(sc);
+						sc.Controller.ControlMe(iteration, sc);
 
 					sc.Update(dt);
 				}
 
+				/*
 				if (_activeCharacters.Count > 1)
 				{
 					_activeCharacters[3].MirrorIt(_activeCharacters[0]);
 				}
-
-				_updateIteration++;
+				*/
 
 				foreach (WorldObserver obs in _observers)
 				{
-					UpdateCharacterFilter(obs);
+					UpdateCharacterFilter(iteration, obs);
 				}
 
-				_updateIteration++;
-
-				UpdateUnreliableAll();
+				UpdateUnreliableAll(iteration);
 			}
 		}
 
 		// Characters in view.
-		private void UpdateCharacterFilter(WorldObserver obs)
+		private void UpdateCharacterFilter(uint iteration, WorldObserver obs)
 		{
 			// Reliable state update
 			//   1. Character enters filter, send whole enter state.
@@ -158,7 +163,7 @@ namespace UnityMMO
 					{
 						outp = Bitstream.Buffer.Make(new byte[1024]);
 						DatagramCoding.WriteUpdateBlockHeader(outp, UpdateBlock.Type.FILTER);
-						Bitstream.PutBits(outp, 24, _updateIteration);
+						Bitstream.PutBits(outp, 24, iteration);
 					}
 
 					Bitstream.PutBits(outp, 15, (uint)i);
@@ -178,8 +183,16 @@ namespace UnityMMO
 			}
 		}
 
+		public void LoadNavMesh(string dataPath, string dataPrefix)
+		{
+			NavMeshMVP nm = new NavMeshMVP();
+			nm.LoadFromText(dataPath + "/" + dataPrefix);
+			_levelQueries = nm;
+			_navMVP = nm;
+		}
+
 		// Characters in view.
-		private void UpdateUnreliableAll()
+		private void UpdateUnreliableAll(uint iteration)
 		{
 			// Unreliable state udptae
 			//   1. All characters write (maybe) unreliable updates 
@@ -193,6 +206,7 @@ namespace UnityMMO
 				}
 				if (_activeCharacters[i].WriteUnreliableUpdate(next))
 				{
+					Bitstream.SyncByte(next);
 					next.Flip();
 					outs[i] = next;
 					next = null;
@@ -210,12 +224,13 @@ namespace UnityMMO
 						{
 							output = Bitstream.Buffer.Make(new byte[512]);
 							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
-							Bitstream.PutBits(output, 24, _updateIteration);
+							Bitstream.PutBits(output, 24, iteration);
 						}
 						// character index
 						Bitstream.PutBits(output, 16, (uint)i);
 						Bitstream.SyncByte(output);
 						Bitstream.Insert(output, outs[i]);
+						Bitstream.SyncByte(output);
 					}
 				}
 

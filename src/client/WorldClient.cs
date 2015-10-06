@@ -1,6 +1,7 @@
 using Cube;
 using netki;
 using System.Collections.Generic;
+using System;
 
 namespace UnityMMO
 {
@@ -19,6 +20,10 @@ namespace UnityMMO
 		private PacketLaneReliableOrdered _pl_reliable;
 		private PacketLaneUnreliableOrdered _pl_unreliable;
 		private Character _controlled;
+
+		// last server timestamp
+		private DateTime _startTime = DateTime.Now;
+		private uint _startIteration = 0;
 
 		public WorldClient(IGameInstClient client)
 		{
@@ -64,9 +69,33 @@ namespace UnityMMO
 			}
 		}
 
+		public uint GetPredictedTime()
+		{
+			TimeSpan ts = DateTime.Now - _startTime;
+			return _startIteration + (uint)(1000.0 * ((double)ts.Ticks / (double)TimeSpan.TicksPerSecond));
+		}
+
+		public uint GetClientTime()
+		{
+			TimeSpan ts = DateTime.Now - _startTime;
+			return (uint)(1000.0 * ((double)ts.Ticks / (double)TimeSpan.TicksPerSecond));
+		}
+	
+		private void OnServerTimestamp(uint iteration)
+		{
+			// play catch up
+			int diff = (int)iteration - (int)GetPredictedTime();
+			if (diff > 0)
+			{
+				_startIteration += (uint)diff;
+				Debug.Log("Adjusting local time by " + diff + " ticks ahead");
+			}
+		}
+
 		private void OnUpdateCharactersBlock(Bitstream.Buffer b)
 		{
 			uint iteration = Bitstream.ReadBits(b, 24);
+			OnServerTimestamp(iteration);
 			while (true)
 			{
 				uint character = Bitstream.ReadBits(b, 16);
@@ -77,6 +106,8 @@ namespace UnityMMO
 
 				Character c = _characters[(int)character];
 				c.OnUpdateBlock(iteration, b);
+
+				Bitstream.SyncByte(b);
 			}
 		}
 
@@ -198,6 +229,7 @@ namespace UnityMMO
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
 			DatagramCoding.WriteEventBlockHeader(cmd, EventBlock.Type.SPAWN);
 			Bitstream.PutStringDumb(cmd, id);
+			Bitstream.PutCompressedUint(cmd, GetClientTime());
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
 		}
