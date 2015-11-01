@@ -5,8 +5,6 @@ namespace UnityMMO
 {
 	public class ServerLevelData
 	{
-		public delegate ServerCharacter LoadServerCharacter(Bitstream.Buffer buf, string name);
-		
 		public static void ParseCharacter(Bitstream.Buffer buf, ServerCharacterData data)
 		{
 			data.Id = Bitstream.ReadCompressedUint(buf);
@@ -16,7 +14,7 @@ namespace UnityMMO
 			data.DefaultSpawnPos.z = Bitstream.ReadFloat(buf);
 		}
 	
-		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server, LoadServerCharacter loadCharacter)
+		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server)
 		{
 			while (true)
 			{
@@ -59,7 +57,22 @@ namespace UnityMMO
 			int check = Bitstream.ReadCompressedInt(buf);
 			for (int i=0;i<characters;i++)
 			{
-				ServerCharacter c = loadCharacter(buf, "serv" + i);
+				ServerCharacterData d = new ServerCharacterData();
+				ServerLevelData.ParseCharacter(buf, d);
+				ServerCharacter c = new ServerCharacter(d);
+
+				// parse controller
+				if (!c.Data.HumanControllable)
+				{
+					uint ctrl = Bitstream.ReadCompressedUint(buf);
+					if (ctrl == 1)
+					{
+						ServerZombieAIController sz = new ServerZombieAIController();
+						sz.Parse(buf);
+						c.Controller = sz;
+					}
+				}
+
 				server.AddCharacter(c);
 			}
 			int spawnpoints = Bitstream.ReadCompressedInt(buf);

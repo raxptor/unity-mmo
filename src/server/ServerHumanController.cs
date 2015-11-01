@@ -42,17 +42,19 @@ namespace UnityMMO
 								character.Velocity = vel;
 								character.Heading = heading * 3.1415f / 128.0f;
 								character.GotNew = true;
+								Debug.Log("Heading " + character.Heading);
 							}
-
-							int l = character.World._navMVP.LayersAt(pos.x, pos.z);
-							if (l == 0)
-								Debug.Log("cant be here! " + pos.x + ":" + pos.z);
-
+								
 							int tmp = 0;
 							float y = 0;
-							character.World._navMVP.GetPoly(pos, out tmp, out y);
-
-							Debug.Log("pos at " + pos.x + "," + pos.z + " y=" + y + " i sent " + pos.y);
+							if (character.World._navMVP.GetPoly(pos, out tmp, out y))
+							{
+	//							Debug.Log("pos at " + pos.x + "," + pos.z + " y=" + y + " i sent " + pos.y);
+							}
+							else
+							{
+								Debug.Log("position outside of nav mesh");
+							}
 							break;
 						}
 					case EventBlock.Type.FIRE:

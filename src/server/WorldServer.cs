@@ -64,11 +64,6 @@ namespace UnityMMO
 			lock (this)
 			{
 				ch.World = this;
-				if (!ch.Data.HumanControllable)
-				{
-					ch.Controller = new ServerZombieAIController();
-				}
-
 				_activeCharacters.Add(ch);
 			}
 		}

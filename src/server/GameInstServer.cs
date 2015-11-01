@@ -198,7 +198,6 @@ namespace UnityMMO
 		private void OnLanePacket(Slot s, Bitstream.Buffer b, bool reliable)
 		{				
 			uint type = Bitstream.ReadBits(b, DatagramCoding.TYPE_BITS);
-			System.Console.WriteLine("OnLanePacket rel=" + reliable + " slot=" + s.PlayerId + " type=" + type + " bits=" + b.BitsLeft());
 			if (b.error != 0)
 				return;
 

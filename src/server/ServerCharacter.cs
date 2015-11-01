@@ -18,6 +18,20 @@ namespace UnityMMO
 			y = _y;
 			z = _z;
 		}
+
+		public override string ToString()
+		{
+			return "[" + x + ":" + y + ":" + z + "]";
+		}
+
+		public static bool operator==(Vector3 a, Vector3 b)
+		{
+			return a.x == b.x && a.y == b.y && a.z == b.z;
+		}
+		public static bool operator!=(Vector3 a, Vector3 b)
+		{
+			return a.x != b.x || a.y != b.y || a.z != b.z;
+		}
 	}
 
 	public class ServerCharacterData
@@ -87,6 +101,7 @@ namespace UnityMMO
 			Bitstream.PutFloat(stream, Position.x);
 			Bitstream.PutFloat(stream, Position.y);
 			Bitstream.PutFloat(stream, Position.z);
+			Bitstream.PutFloat(stream, Heading);
 			Bitstream.PutCompressedInt(stream, (int)TimeOffset);
 		}
 
@@ -102,6 +117,7 @@ namespace UnityMMO
 				Bitstream.PutFloat(stream, Position.x);
 				Bitstream.PutFloat(stream, Position.y);
 				Bitstream.PutFloat(stream, Position.z);
+				Bitstream.PutFloat(stream, Heading);
 				Bitstream.PutFloat(stream, Velocity.x);
 				Bitstream.PutFloat(stream, Velocity.y);
 				Bitstream.PutFloat(stream, Velocity.z);

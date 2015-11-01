@@ -6,6 +6,31 @@ namespace UnityMMO
 	public class ServerZombieAIController : Controller
 	{
 		const float height_y = 2.0f;
+	
+		// params
+		public string m_Character;
+		public float m_HP;
+		public float m_Attack;
+		public float m_PatrolRadius;
+		public float m_SearchRadius;
+		public float m_MoveSpeed;
+		public float m_MinSpawnTime;
+		public float m_MaxSpawnTime;
+		//
+
+		Random m_random = new Random();
+
+		public void Parse(Bitstream.Buffer b)
+		{
+			m_Character = Bitstream.ReadStringDumb(b);
+			m_HP = Bitstream.ReadFloat(b);
+			m_Attack = Bitstream.ReadFloat(b);
+			m_PatrolRadius = Bitstream.ReadFloat(b);
+			m_SearchRadius = Bitstream.ReadFloat(b);
+			m_MoveSpeed = Bitstream.ReadFloat(b);
+			m_MinSpawnTime = Bitstream.ReadFloat(b);
+			m_MaxSpawnTime = Bitstream.ReadFloat(b);
+		}
 
 		class Data
 		{
@@ -18,6 +43,7 @@ namespace UnityMMO
 			public uint LastControllerUpdate;
 			public ServerCharacter Target;
 			public Vector3[] PathToTarget;
+			public Vector3[] PathToPatrol;
 			public int PathNext;
 		};
 
@@ -40,8 +66,6 @@ namespace UnityMMO
 				// halp!
 				return;
 			}
-
-			ground_y += height_y;
 
 			if (character.Position.y > ground_y)
 			{
@@ -66,12 +90,12 @@ namespace UnityMMO
 				if (ch.Data.HumanControllable && ch.Spawned)
 				{
 					float dist = _Dist(ch.Position, character.Position);
-					if (dist < closest || closest == 0)
+					if (dist < closest || closest == 0 && dist < m_SearchRadius)
 					{
 						closest = dist;
 						d.Target = ch;
 						d.PathToTarget = null;
-						Debug.Log("My target is " + ch.Data.Id + " away:" + dist);
+						Debug.Log("My target is " + ch.Data.Id + " away:" + dist + " position:" + ch.Position);
 					}
 				}
 			}
@@ -85,8 +109,6 @@ namespace UnityMMO
 			{
 				d.Target = null;
 				d.PathToTarget = null;
-				Debug.Log("Aborting hunt because target is gone!");
-				return;
 			}
 
 			if (d.PathToTarget == null)
@@ -94,38 +116,72 @@ namespace UnityMMO
 				d.PathToTarget = character.World._navMVP.MakePath(character.Position, d.Target.Position);
 				d.PathNext = 0;
 			}
-			else
-			{	
-//				Debug.Log("I have a path which is " + d.PathToTarget.Length + " entries");
-
-				if (d.PathNext < d.PathToTarget.Length)
-				{
-					Vector3 next = d.PathToTarget[d.PathNext];
-
-					float dx = next.x - character.Position.x;
-					float dy = next.y - character.Position.y;
-					float dz = next.z - character.Position.z;
-					float dsq = dx * dx + dy * dy + dz * dz; 
-					if (dsq < 1.0f)
-					{
-						d.PathNext++;
-						if (d.PathNext == d.PathToTarget.Length)
-						{
-							d.PathNext = 0;
-							character.Position = d.PathToTarget[0];
-						}
-						return;
-					}
-
-					float spd = dt * 20.0f;
-					float dinv = 1.0f / (float)Math.Sqrt(dsq);
-					float amt = spd * dinv;
-					character.Position.x += amt * dx; 
-					character.Position.y += amt * dy; 
-					character.Position.z += amt * dz; 
-				}
+				
+			if (!FollowPath(character, d, dt, d.PathToTarget))
+			{
+				d.PathToTarget = null;
+				d.Target = null;
 			}
+		}
 
+		private void DoPatrol(ServerCharacter character, Data d, float dt)
+		{
+			if (!FollowPath(character, d, dt, d.PathToPatrol))
+			{
+				d.PathToPatrol = null;
+			}
+		}
+
+		private bool FollowPath(ServerCharacter character, Data d, float dt, Vector3[] path)
+		{
+			if (d.PathNext < path.Length)
+			{
+				Vector3 next = path[d.PathNext];
+
+				float dx = next.x - character.Position.x;
+				float dy = next.y - character.Position.y;
+				float dz = next.z - character.Position.z;
+				float dsq = dx * dx + dy * dy + dz * dz; 
+
+				float nextHeading = (float)-Math.Atan2(-dx, dz);
+
+				const float tau = 6.28f;
+				float a = Math.Abs(character.Heading - nextHeading);
+				if (Math.Abs(character.Heading + tau - nextHeading) < a)
+					character.Heading += tau;
+				else if (Math.Abs(character.Heading - tau - nextHeading) < a)
+					character.Heading -= tau;
+
+				character.Heading = character.Heading + 0.90f * (nextHeading - character.Heading);
+
+				if (dsq < 0.001f)
+				{
+					d.PathNext++;
+					if (d.PathNext == path.Length)
+					{
+						d.PathNext = 0;
+						character.Position = path[path.Length-1];
+						return false;
+					}
+					return true;
+				}
+
+				float spd = dt * m_MoveSpeed;
+				float dinv = 1.0f / (float)Math.Sqrt(dsq);
+				float amt = spd * dinv;
+				if (amt > 1)
+				{
+					amt = 1.0f;
+				}
+				character.Position.x += amt * dx; 
+				character.Position.y += amt * dy; 
+				character.Position.z += amt * dz; 
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 
 		public void ControlMe(uint iteration, ServerCharacter character)
@@ -137,7 +193,7 @@ namespace UnityMMO
 				character.Velocity.x = 0;
 				character.Velocity.y = 0;
 				character.Velocity.z = 0;
-				character.CharacterTypeId = "defaultplayer";
+				character.CharacterTypeId = m_Character;
 				character.Spawned = true;
 				character.TimeOffset = 0;
 				character.GotNew = true;
@@ -176,6 +232,29 @@ namespace UnityMMO
 			else
 			{
 				HuntTarget(character, d, dt);
+			}
+
+			// totally idle
+			if (d.GroundedOnPoly != -1 && d.Target == null && d.PathToTarget == null && d.PathToPatrol == null)
+			{					
+				Vector3 patrol_pos = character.Data.DefaultSpawnPos;
+				patrol_pos.x += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
+				patrol_pos.z += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
+
+				NavMeshMVP nav = character.World._navMVP;
+				int poly; float height;
+				if (nav.GetPoly(patrol_pos, out poly, out height))
+				{
+					patrol_pos.y = height;
+					d.PathToPatrol = nav.MakePath(character.Position, patrol_pos);
+					d.PathNext = 0;
+					Console.WriteLine("Made patrol path to " + patrol_pos);
+				}
+			}
+
+			if (d.GroundedOnPoly != -1 && d.Target == null && d.PathToPatrol != null)
+			{
+				DoPatrol(character, d, dt);
 			}
 				
 			character.GotNew = true;
