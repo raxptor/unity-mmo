@@ -42,7 +42,6 @@ namespace UnityMMO
 								character.Velocity = vel;
 								character.Heading = heading * 3.1415f / 128.0f;
 								character.GotNew = true;
-								Debug.Log("Heading " + character.Heading);
 							}
 								
 							int tmp = 0;
