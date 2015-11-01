@@ -165,8 +165,8 @@ namespace UnityMMO
 			wrap.Data = new byte[1024];
 			wrap.Data[0] = lane;
 			wrap.Length = (buf.bufsize - buf.bytepos) + 1;
-			wrap.Offset = 1;
-			System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize);
+			wrap.Offset = 0;
+			System.Buffer.BlockCopy(buf.buf, 0, wrap.Data, 1, buf.bufsize - buf.bytepos + 1);
 			_client.Send(wrap, false);
 		}
 
@@ -231,6 +231,14 @@ namespace UnityMMO
 			Bitstream.PutStringDumb(cmd, id);
 			Bitstream.PutCompressedUint(cmd, GetClientTime());
 			cmd.Flip();
+
+			Debug.Log("Spawning [" + id + "]");
+
+			string k = "";
+			for (int i = 0; i < cmd.bufsize; i++)
+				k = k + "[" + cmd.buf[i] + "] ";
+			Debug.Log("pkt = " + k);
+
 			_pl_reliable.Send(cmd);
 		}
 

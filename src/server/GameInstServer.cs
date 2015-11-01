@@ -8,6 +8,7 @@ namespace UnityMMO
 		public class Slot
 		{
 			public string PlayerId;
+			public ServerPlayer Player;
 			public ulong Endpoint;
 			public Cube.GameInstPlayer GameInstPlayer;
 			public Cube.PacketExchangeDelegate SendDatagram, SendStream;
@@ -87,6 +88,9 @@ namespace UnityMMO
 					_slots.Add(s);
 				}
 
+				if (s.PlayerId == null)
+					s.Player = new ServerPlayer(playerId);
+	
 				s.PlayerId = playerId;
 				s.GameInstPlayer = player;
 				s.SendStream = _send_to_me;
@@ -111,6 +115,8 @@ namespace UnityMMO
 				s.ServerCharacter = _worldServer.GrabHumanControllable(s.Controller);
 				if (s.ServerCharacter == null)
 					return false;
+
+				s.ServerCharacter.Player = s.Player;
 
 				// got contror of a character.
 				netki.MMOHumanAttachController status = new netki.MMOHumanAttachController();
@@ -141,7 +147,7 @@ namespace UnityMMO
 		}
 	
 		public bool OnDatagram(byte[] datagram, int offset, int length, ulong endpoint)
-		{
+		{			
 			lock (this)
 			{
 				Slot s = SlotByEndpoint(endpoint);
@@ -190,8 +196,9 @@ namespace UnityMMO
 
 		// Packet arrived through either reliable or unreilable lan.
 		private void OnLanePacket(Slot s, Bitstream.Buffer b, bool reliable)
-		{
+		{				
 			uint type = Bitstream.ReadBits(b, DatagramCoding.TYPE_BITS);
+			System.Console.WriteLine("OnLanePacket rel=" + reliable + " slot=" + s.PlayerId + " type=" + type + " bits=" + b.BitsLeft());
 			if (b.error != 0)
 				return;
 

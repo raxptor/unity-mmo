@@ -96,7 +96,7 @@ namespace UnityMMO
 			}
 			else
 			{	
-				Debug.Log("I have a path which is " + d.PathToTarget.Length + " entries");
+//				Debug.Log("I have a path which is " + d.PathToTarget.Length + " entries");
 
 				if (d.PathNext < d.PathToTarget.Length)
 				{

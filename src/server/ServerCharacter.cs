@@ -28,10 +28,11 @@ namespace UnityMMO
 		public Vector3 DefaultSpawnPos;
 	}
 
-	public class ServerCharacter
+	public class ServerCharacter : Entity
 	{
 		// locations
 		public ServerCharacterData Data;
+		public ServerPlayer Player;
 		public WorldServer World;
 		public Vector3 Position;
 		public Vector3 Velocity;
@@ -62,7 +63,7 @@ namespace UnityMMO
 		{
 			Data = from.Data;
 			Position = from.Position;
-			Position.x = Position.x + 2;
+			Position.z = Position.z + 4;
 			Velocity = from.Velocity;
 			Heading = from.Heading;
 			Spawned = from.Spawned;
@@ -71,7 +72,7 @@ namespace UnityMMO
 			GotNew = from.GotNew;
 		}
 
-		public virtual void Update(float dt)
+		public override void Update(float dt)
 		{
 			if (!Spawned)
 			{
@@ -79,7 +80,7 @@ namespace UnityMMO
 			}
 		}
 
-		public virtual void WriteFullState(Bitstream.Buffer stream)
+		public override void WriteFullState(Bitstream.Buffer stream)
 		{
 			// which character it is.
 			Bitstream.PutStringDumb(stream, CharacterTypeId);
@@ -89,12 +90,12 @@ namespace UnityMMO
 			Bitstream.PutCompressedInt(stream, (int)TimeOffset);
 		}
 
-		public virtual bool WriteReliableUpdate(Bitstream.Buffer stream)
+		public override bool WriteReliableUpdate(Bitstream.Buffer stream)
 		{
 			return false;
 		}
 
-		public virtual bool WriteUnreliableUpdate(Bitstream.Buffer stream)
+		public override bool WriteUnreliableUpdate(Bitstream.Buffer stream)
 		{
 			if (GotNew)
 			{

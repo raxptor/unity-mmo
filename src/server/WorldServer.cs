@@ -14,15 +14,14 @@ namespace UnityMMO
 
 	public interface ILevelQuery
 	{
-		/*
-		bool IsValidLocation(Vector3 position);
-		bool CanNavigate(Vector3 from, Vector3 to);
-		Vector3[] Navigate(Vector3 from, Vector3 to);
-		*/
+		// bool IsValidLocation(Vector3 position);
+		// bool CanNavigate(Vector3 from, Vector3 to);
+		// Vector3[] Navigate(Vector3 from, Vector3 to);
 	}
 
 	public class WorldServer
 	{
+		public List<Entity> _activeEntities = new List<Entity>();
 		public List<ServerCharacter> _activeCharacters;
 		public List<WorldObserver> _observers = new List<WorldObserver>();
 		public ILevelQuery _levelQueries;
@@ -30,6 +29,7 @@ namespace UnityMMO
 
 		public outki.GameConfiguration _config;
 		public List<Vector3> _humanSpawnPoints = new List<Vector3>();
+		public Dictionary<uint, outki.Item> m_itemData = new Dictionary<uint, outki.Item>();
 
 		DateTime _startTime = DateTime.Now;
 
@@ -37,6 +37,26 @@ namespace UnityMMO
 		{
 			_activeCharacters = new List<ServerCharacter>();
 			_config = config;
+		}
+
+		public void AddItemData(outki.Item item)
+		{
+			if (m_itemData.ContainsKey(item.Id))
+			{
+				Debug.Log("Failed to add item [" + item.DebugName + "] because id already exists");
+			}
+			else
+			{
+				m_itemData.Add(item.Id, item);
+			}
+		}
+
+		public void AddEntity(Entity e)
+		{
+			lock (this)
+			{
+				_activeEntities.Add(e);
+			}
 		}
 
 		public void AddCharacter(ServerCharacter ch)
@@ -129,12 +149,7 @@ namespace UnityMMO
 					sc.Update(dt);
 				}
 
-				/*
-				if (_activeCharacters.Count > 1)
-				{
-					_activeCharacters[3].MirrorIt(_activeCharacters[0]);
-				}
-				*/
+				_activeCharacters[3].MirrorIt(_activeCharacters[0]);
 
 				foreach (WorldObserver obs in _observers)
 				{

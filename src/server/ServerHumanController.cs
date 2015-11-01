@@ -49,10 +49,10 @@ namespace UnityMMO
 								Debug.Log("cant be here! " + pos.x + ":" + pos.z);
 
 							int tmp = 0;
-							float z = 0;
-							character.World._navMVP.GetPoly(pos, out tmp, out z);
+							float y = 0;
+							character.World._navMVP.GetPoly(pos, out tmp, out y);
 
-//							Debug.Log("layers at " + pos.x + "," + pos.z + " = " + character.World._navMVP.LayersAt(pos.x, pos.z));
+							Debug.Log("pos at " + pos.x + "," + pos.z + " y=" + y + " i sent " + pos.y);
 							break;
 						}
 					case EventBlock.Type.FIRE:
@@ -63,11 +63,14 @@ namespace UnityMMO
 						{
 							string CharacterId = Bitstream.ReadStringDumb(buf);
 							uint local_time = Bitstream.ReadCompressedUint(buf);
+
 							if (character.Spawned)
 							{
-								Debug.Log("Spawn: Player already spawned");
+								// Debug.Log("Spawn: Player already spawned");
 								break;
 							}
+
+							Debug.Log("Spawning character [" + CharacterId + "] on player");
 
 							Vector3 spawnPos;
 							if (!character.World.GetPointForHumanSpawn(out spawnPos))

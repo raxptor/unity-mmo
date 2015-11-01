@@ -2,6 +2,11 @@ using netki;
 
 namespace UnityMMO
 {
+	public static class GameInfo
+	{
+		public const uint Version = 1;
+	}
+	
 	public static class UpdateBlock
 	{
 		public const int TYPE_BITS = 4;
