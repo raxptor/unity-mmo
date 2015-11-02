@@ -113,7 +113,7 @@ namespace UnityMMO
 
 			if (d.PathToTarget == null)
 			{
-				d.PathToTarget = character.World._navMVP.MakePath(character.Position, d.Target.Position);
+				d.PathToTarget = character.World._navMVP.MakePath(character.Position, d.Target.Position, null);
 				d.PathNext = 0;
 			}
 				
@@ -246,7 +246,7 @@ namespace UnityMMO
 				if (nav.GetPoly(patrol_pos, out poly, out height))
 				{
 					patrol_pos.y = height;
-					d.PathToPatrol = nav.MakePath(character.Position, patrol_pos);
+					d.PathToPatrol = nav.MakePath(character.Position, patrol_pos, null);
 					d.PathNext = 0;
 					Console.WriteLine("Made patrol path to " + patrol_pos);
 				}
