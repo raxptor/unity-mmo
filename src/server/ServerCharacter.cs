@@ -32,6 +32,34 @@ namespace UnityMMO
 		{
 			return a.x != b.x || a.y != b.y || a.z != b.z;
 		}
+		public static Vector3 operator-(Vector3 a, Vector3 b)
+		{
+			return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z);
+		}
+		public static Vector3 operator+(Vector3 a, Vector3 b)
+		{
+			return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z);
+		}
+		public static Vector3 operator*(float k, Vector3 a)
+		{
+			return new Vector3(k * a.x, k * a.y, k * a.z);
+		}
+		public static Vector3 CompMul(Vector3 a, Vector3 b)
+		{
+			return new Vector3(a.x * b.x, a.y * b.y, a.z * b.z);
+		}
+		public static float Dot(Vector3 a, Vector3 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z;
+		}
+		public static Vector3 Cross(Vector3 v1, Vector3 v2)
+		{
+			float x, y, z;
+			x = v1.y * v2.z - v2.y * v1.z;
+			y = (v1.x * v2.z - v2.x * v1.z) * -1;
+			z = v1.x * v2.y - v2.x * v1.y;
+			return new Vector3(x, y, z);
+		}
 	}
 
 	public class ServerCharacterData

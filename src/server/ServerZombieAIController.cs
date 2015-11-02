@@ -116,7 +116,7 @@ namespace UnityMMO
 			}
 			return res;
 		}
-			
+
 		private bool FollowPath(ServerCharacter character, Data d, float dt, Vector3[] path)
 		{
 			if (d.PathNext < path.Length)
