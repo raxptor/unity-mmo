@@ -144,7 +144,7 @@ namespace UnityMMO
 					sc.Update(dt);
 				}
 
-				_activeCharacters[3].MirrorIt(_activeCharacters[0]);
+//				_activeCharacters[3].MirrorIt(_activeCharacters[0]);
 
 				foreach (WorldObserver obs in _observers)
 				{

@@ -34,6 +34,14 @@ namespace UnityMMO
 
 		class Data
 		{
+			public enum State
+			{
+				IDLE,
+				PATROL,
+				CHASE,
+				ATTACK,
+			}
+
 			public Data()
 			{
 				GroundedOnPoly = -1;
@@ -44,6 +52,7 @@ namespace UnityMMO
 			public ServerCharacter Target;
 			public Vector3[] PathToTarget;
 			public Vector3[] PathToPatrol;
+			public State CurState;
 			public int PathNext;
 		};
 
@@ -53,7 +62,7 @@ namespace UnityMMO
 			d.x = b.x - a.x;
 			d.y = b.y - a.y;
 			d.z = b.z - a.z;
-			return d.x * d.x + d.y * d.y + d.z * d.z;
+			return (float) Math.Sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
 		}
 
 		private void Fall(ServerCharacter character, Data d, float dt)
@@ -81,57 +90,33 @@ namespace UnityMMO
 			}
 		}
 
-		private void FindTarget(ServerCharacter character, Data d)
+		private ServerCharacter FindTarget(ServerCharacter character, Data d)
 		{
+			ServerCharacter res = null;
 			WorldServer w = character.World;
 			foreach (ServerCharacter ch in w._activeCharacters)
 			{
 				float closest = 0;
 				if (ch.Data.HumanControllable && ch.Spawned)
 				{
+					int idx;
+					float ground_y;
+					if (!character.World._navMVP.GetPoly(character.Position, out idx, out ground_y))
+					{
+						continue;
+					}
+
 					float dist = _Dist(ch.Position, character.Position);
 					if (dist < closest || closest == 0 && dist < m_SearchRadius)
 					{
 						closest = dist;
-						d.Target = ch;
-						d.PathToTarget = null;
-						Debug.Log("My target is " + ch.Data.Id + " away:" + dist + " position:" + ch.Position);
+						res = ch;
 					}
 				}
 			}
+			return res;
 		}
-
-		private static Random r = new Random();
-
-		private void HuntTarget(ServerCharacter character, Data d, float dt)
-		{
-			if (!d.Target.Spawned)
-			{
-				d.Target = null;
-				d.PathToTarget = null;
-			}
-
-			if (d.PathToTarget == null)
-			{
-				d.PathToTarget = character.World._navMVP.MakePath(character.Position, d.Target.Position);
-				d.PathNext = 0;
-			}
-				
-			if (!FollowPath(character, d, dt, d.PathToTarget))
-			{
-				d.PathToTarget = null;
-				d.Target = null;
-			}
-		}
-
-		private void DoPatrol(ServerCharacter character, Data d, float dt)
-		{
-			if (!FollowPath(character, d, dt, d.PathToPatrol))
-			{
-				d.PathToPatrol = null;
-			}
-		}
-
+			
 		private bool FollowPath(ServerCharacter character, Data d, float dt, Vector3[] path)
 		{
 			if (d.PathNext < path.Length)
@@ -139,9 +124,8 @@ namespace UnityMMO
 				Vector3 next = path[d.PathNext];
 
 				float dx = next.x - character.Position.x;
-				float dy = next.y - character.Position.y;
 				float dz = next.z - character.Position.z;
-				float dsq = dx * dx + dy * dy + dz * dz; 
+				float dsq = dx * dx + dz * dz; 
 
 				float nextHeading = (float)-Math.Atan2(-dx, dz);
 
@@ -173,15 +157,50 @@ namespace UnityMMO
 				{
 					amt = 1.0f;
 				}
-				character.Position.x += amt * dx; 
-				character.Position.y += amt * dy; 
-				character.Position.z += amt * dz; 
+			
+				Vector3 test = new Vector3(character.Position.x + amt * dx, character.Position.y, character.Position.z + amt * dz);
+
+				float height;
+				int poly;
+				if (character.World._navMVP.GetPoly(test, out poly, out height))
+				{
+					test.y = height;
+					// correct for speed here.
+				}
+				else
+				{
+					Console.WriteLine("i am nowhere!");
+				}
+
+				character.Position = test;
+
 				return true;
 			}
 			else
 			{
 				return false;
 			}
+		}
+
+		public Vector3[] MakeClosePath(ServerCharacter character, Vector3 begin, Vector3 end)
+		{
+			NavMeshMVP nav = character.World._navMVP;
+			int idx;
+			float y;
+			float dx, dy;
+
+			// TODO: Code approximator make path instead.
+			Random r = new Random();
+			Vector3 tryend = end;
+			for (int i = 0; i < 10; i++)
+			{
+				if (nav.GetPoly(tryend, out idx, out y))
+					return nav.MakePath(begin, tryend);
+
+				tryend.x = end.x + (float)(r.NextDouble() - 0.5f) * 0.25f;
+				tryend.z = end.z + (float)(r.NextDouble() - 0.5f) * 0.25f;
+			}
+			return null;
 		}
 
 		public void ControlMe(uint iteration, ServerCharacter character)
@@ -201,6 +220,7 @@ namespace UnityMMO
 				Data nd = new Data();
 				nd.GroundedOnPoly = -1;
 				nd.LastControllerUpdate = iteration;
+				nd.CurState = Data.State.IDLE;
 				character.ControllerData = nd;
 			}
 
@@ -224,38 +244,101 @@ namespace UnityMMO
 			if (d.GroundedOnPoly == -1)
 			{
 				Fall(character, d, dt);
-			}
-			else if (d.Target == null)
-			{
-				FindTarget(character, d);
-			}
-			else
-			{
-				HuntTarget(character, d, dt);
+				character.GotNew = true;
 			}
 
-			// totally idle
-			if (d.GroundedOnPoly != -1 && d.Target == null && d.PathToTarget == null && d.PathToPatrol == null)
-			{					
-				Vector3 patrol_pos = character.Data.DefaultSpawnPos;
-				patrol_pos.x += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
-				patrol_pos.z += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
-
-				NavMeshMVP nav = character.World._navMVP;
-				int poly; float height;
-				if (nav.GetPoly(patrol_pos, out poly, out height))
+			if (d.GroundedOnPoly != -1)
+			{
+				switch (d.CurState)
 				{
-					patrol_pos.y = height;
-					d.PathToPatrol = nav.MakePath(character.Position, patrol_pos);
-					d.PathNext = 0;
-					Console.WriteLine("Made patrol path to " + patrol_pos);
+					case Data.State.IDLE:
+						{
+							// Make patrol.
+							Vector3 patrol_pos = character.Data.DefaultSpawnPos;
+							patrol_pos.x += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
+							patrol_pos.z += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
+
+							if (_Dist(patrol_pos, character.Position) > 2.0f)
+							{
+								NavMeshMVP nav = character.World._navMVP;
+								int poly;
+								float height;
+								if (nav.GetPoly(patrol_pos, out poly, out height))
+								{
+									patrol_pos.y = height;
+									d.PathToPatrol = nav.MakePath(character.Position, patrol_pos);
+									if (d.PathToPatrol != null)
+									{
+										d.PathNext = 0;
+										d.CurState = Data.State.PATROL;
+									}
+								}
+							}
+						}
+						break;
+
+					case Data.State.PATROL:
+						{
+							//
+							ServerCharacter tgt = FindTarget(character, d);
+							if (tgt != null)
+							{
+								d.PathToTarget = MakeClosePath(character, character.Position, tgt.Position);
+								if (d.PathToTarget != null)
+								{
+									Console.WriteLine("I can chase target! " + d.PathToTarget.Length + " nodes path.");
+									d.PathNext = 0;
+									d.Target = tgt;
+									d.CurState = Data.State.CHASE;
+									break;
+								}
+							}
+						
+							if (!FollowPath(character, d, dt, d.PathToPatrol))
+							{
+								Console.WriteLine("Done patroling, going idle.");
+								d.CurState = Data.State.IDLE;
+							}
+						}
+						break;
+
+					case Data.State.CHASE:
+						{
+							if (!d.Target.Spawned)
+							{
+								Console.WriteLine("Target unspawned, going idle.");
+								d.CurState = Data.State.IDLE;
+							}
+
+							Vector3 last = d.PathToTarget[d.PathToTarget.Length - 1];
+							float dx = last.x - d.Target.Position.x;
+							float dz = last.z - d.Target.Position.z;
+							if (dx * dx + dz * dz > 9.0f)
+							{
+								Vector3[] potNew = MakeClosePath(character, character.Position, d.Target.Position);
+								if (potNew != null)
+								{
+									d.PathToTarget = potNew;
+									d.PathNext = 0;
+								}
+							}
+
+							if (dx * dx + dz * dz > 50.0f)
+							{
+								Debug.Log("Target ran away super far");
+								d.CurState = Data.State.IDLE;
+							}
+			
+							if (!FollowPath(character, d, dt, d.PathToTarget))
+							{
+								d.CurState = Data.State.IDLE;
+								break;
+							}
+						}
+						break;
 				}
 			}
 
-			if (d.GroundedOnPoly != -1 && d.Target == null && d.PathToPatrol != null)
-			{
-				DoPatrol(character, d, dt);
-			}
 				
 			character.GotNew = true;
 		}
