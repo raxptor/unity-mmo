@@ -52,14 +52,26 @@ namespace UnityMMO
 			public ServerCharacter Target;
 			public Vector3[] PathToTarget;
 			public Vector3[] PathToPatrol;
+			public bool TargetPathIsComplete;
+			public Vector3 TargetPathTarget;
 			public State CurState;
 			public int PathNext;
+			public float PathT;
 			public uint PathCooldown;
 		};
 
-		public const uint PathCooldownIterations = 500;
+		public const uint PathCooldownIterations = 300;
 
 		public static float _Dist(Vector3 a, Vector3 b)
+		{
+			Vector3 d;
+			d.x = b.x - a.x;
+			d.y = b.y - a.y;
+			d.z = b.z - a.z;
+			return (float) Math.Sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+		}
+
+		public static float _Dist2D(Vector3 a, Vector3 b)
 		{
 			Vector3 d;
 			d.x = b.x - a.x;
@@ -89,6 +101,7 @@ namespace UnityMMO
 					character.Position.y = ground_y;
 					character.Velocity.y = 0;
 					d.GroundedOnPoly = idx;
+					UnityMMO.Debug.Log("Fell to point y=" + ground_y);
 				}
 			}
 		}
@@ -122,68 +135,56 @@ namespace UnityMMO
 
 		private bool FollowPath(ServerCharacter character, Data d, float dt, Vector3[] path)
 		{
-			if (d.PathNext < path.Length)
+			float left = 0.0f;
+			Vector3 pathTarget = character.Position;
+				
+			int p0 = d.PathNext;
+			int p1 = d.PathNext + 1;
+			if (p1 < path.Length)
 			{
-				Vector3 next = path[d.PathNext];
+				float dist = _Dist(path[p0], path[p1]);
+				float rate = m_MoveSpeed / dist;
+				float inc = dt * rate;
 
-				float dx = next.x - character.Position.x;
-				float dz = next.z - character.Position.z;
-				float dsq = dx * dx + dz * dz; 
-
-				float nextHeading = (float)-Math.Atan2(-dx, dz);
-
-				const float tau = 6.28f;
-				float a = Math.Abs(character.Heading - nextHeading);
-				if (Math.Abs(character.Heading + tau - nextHeading) < a)
-					character.Heading += tau;
-				else if (Math.Abs(character.Heading - tau - nextHeading) < a)
-					character.Heading -= tau;
-
-				character.Heading = character.Heading + 0.90f * (nextHeading - character.Heading);
-
-				if (dsq < 0.001f)
+				d.PathT += inc;
+				if (d.PathT > 1.0f)
 				{
+					left = ((d.PathT - 1.0f) * dist) / m_MoveSpeed;
+					d.PathT = 0.0f;
 					d.PathNext++;
-					if (d.PathNext == path.Length)
-					{
-						d.PathNext = 0;
-						character.Position = path[path.Length-1];
-						return false;
-					}
-					return true;
-				}
-
-				float spd = dt * m_MoveSpeed;
-				float dinv = 1.0f / (float)Math.Sqrt(dsq);
-				float amt = spd * dinv;
-				if (amt > 1)
-				{
-					amt = 1.0f;
-				}
-			
-				Vector3 test = new Vector3(character.Position.x + amt * dx, character.Position.y, character.Position.z + amt * dz);
-
-				float height;
-				int poly;
-				if (character.World._navMVP.GetPoly(test, out poly, out height))
-				{
-					test.y = height;
-					// correct for speed here.
+					pathTarget = path[p1];
 				}
 				else
 				{
-					test = next;
-					return false;
+					pathTarget = path[p0] + d.PathT * (path[p1] - path[p0]);
 				}
-
-				character.Position = test;
-
-				return true;
 			}
 			else
 			{
+				pathTarget = path[path.Length - 1];
+			}
+
+			character.Position.x += 0.50f * (pathTarget.x - character.Position.x);
+			character.Position.y += 0.50f * (pathTarget.y - character.Position.y);
+			character.Position.z += 0.50f * (pathTarget.z - character.Position.z);
+
+			float dx = pathTarget.x - character.Position.x;
+			float dz = pathTarget.z - character.Position.z;
+			float dsq = dx * dx + dz * dz; 
+
+			character.Heading = (float)-Math.Atan2(-dx, dz);
+
+			if (_Dist(character.Position, pathTarget) < 0.001f && p1 >= path.Length)
+			{
 				return false;
 			}
+
+			if (left > 0.0f)
+			{
+				return FollowPath(character, d, left, path);
+			}
+
+			return true;
 		}
 
 		public Vector3[] MakeClosePath(ServerCharacter character, Vector3 begin, Vector3 end)
@@ -269,7 +270,7 @@ namespace UnityMMO
 								patrol_pos.x += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
 								patrol_pos.z += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
 
-								if (_Dist(patrol_pos, character.Position) > 2.0f)
+								if (_Dist2D(patrol_pos, character.Position) > 2.0f)
 								{
 									NavMeshMVP nav = character.World._navMVP;
 									int poly;
@@ -280,7 +281,9 @@ namespace UnityMMO
 										d.PathToPatrol = nav.MakePath(character.Position, patrol_pos, null);
 										if (d.PathToPatrol != null)
 										{
-											d.PathNext = 1;
+											Console.WriteLine("Patrol from " + character.Position + " to " + patrol_pos);
+											d.PathNext = 0;
+											d.PathT = 0;
 											d.CurState = Data.State.PATROL;
 										}
 									}
@@ -299,8 +302,10 @@ namespace UnityMMO
 								d.PathToTarget = MakeClosePath(character, character.Position, tgt.Position);
 								if (d.PathToTarget != null)
 								{
-									Console.WriteLine("I can chase target! " + d.PathToTarget.Length + " nodes path.");
-									d.PathNext = 1;
+									d.TargetPathTarget = tgt.Position;
+									d.TargetPathIsComplete = d.PathToTarget[d.PathToTarget.Length - 1] == tgt.Position;
+									d.PathNext = 0;
+									d.PathT = 0;
 									d.Target = tgt;
 									d.CurState = Data.State.CHASE;
 									break;
@@ -327,16 +332,26 @@ namespace UnityMMO
 							}
 
 							Vector3 last = d.PathToTarget[d.PathToTarget.Length - 1];
-							float dx = last.x - d.Target.Position.x;
-							float dz = last.z - d.Target.Position.z;
-							if (dx * dx + dz * dz > 1.0f && iteration > d.PathCooldown)
+							// target to character
+							float dx = d.TargetPathTarget.x - d.Target.Position.x;
+							float dz = d.TargetPathTarget.z - d.Target.Position.z;
+							// me to character
+							float mx = last.x - character.Position.x;
+							float mz = last.z - character.Position.z;
+
+							double dd = Math.Sqrt(dx*dx + dz*dz);
+							double dm = Math.Sqrt(mx * mx + mz * mz);
+							if (dd > dm * 0.20f && iteration > d.PathCooldown)
 							{
 								d.PathCooldown = iteration + PathCooldownIterations;
 								Vector3[] potNew = MakeClosePath(character, character.Position, d.Target.Position);
 								if (potNew != null)
 								{
 									d.PathToTarget = potNew;
-									d.PathNext = 1;
+									d.PathNext = 0;
+									d.PathT = 0;
+									d.TargetPathTarget = tgt.Position;
+									d.TargetPathIsComplete = d.PathToTarget[d.PathToTarget.Length - 1] == tgt.Position;
 								}
 
 								if (dx * dx + dz * dz > 250.0f)

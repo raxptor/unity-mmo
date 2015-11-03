@@ -13,8 +13,10 @@ namespace UnityMMO
 			data.DefaultSpawnPos.y = Bitstream.ReadFloat(buf);
 			data.DefaultSpawnPos.z = Bitstream.ReadFloat(buf);
 		}
+
+		public delegate byte[] LoadNavMeshFn(string pathFile);
 	
-		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server)
+		public static void LoadIntoWorld(Bitstream.Buffer buf, WorldServer server, LoadNavMeshFn navMeshFn)
 		{
 			while (true)
 			{
@@ -98,7 +100,7 @@ namespace UnityMMO
 			string pathFile = Bitstream.ReadStringDumb(buf);
 			Debug.Log("Path file is [" + pathFile + "]");
 
-			server.LoadNavMesh(editorPrefix, pathFile);
+			server.LoadNavMesh(navMeshFn(pathFile));
 		}
 
 		private static void SetupSharedEntity(Bitstream.Buffer buf, WorldServer server, string type, uint id)
