@@ -24,6 +24,21 @@ namespace UnityMMO
 			return "[" + x + ":" + y + ":" + z + "]";
 		}
 
+		public override bool Equals(object obj)
+		{
+			if (obj is Vector3)
+			{
+				Vector3 k = (Vector3) obj;
+				return k.x == x && k.y == y && k.z == z;
+			}
+			return false;			
+		}
+
+		public override int GetHashCode()
+		{
+			return (int)x;
+		}
+
 		public static bool operator==(Vector3 a, Vector3 b)
 		{
 			return a.x == b.x && a.y == b.y && a.z == b.z;

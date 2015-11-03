@@ -196,7 +196,7 @@ namespace UnityMMO
 		public void LoadNavMesh(string dataPath, string dataPrefix)
 		{
 			NavMeshMVP nm = new NavMeshMVP();
-			nm.LoadFromText(dataPath + "/" + dataPrefix);
+			nm.LoadFromBinmesh(dataPath + "/" + dataPrefix);
 			_levelQueries = nm;
 			_navMVP = nm;
 		}

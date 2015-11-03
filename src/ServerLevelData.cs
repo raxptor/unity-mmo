@@ -54,7 +54,7 @@ namespace UnityMMO
 			}
 
 			int characters = Bitstream.ReadCompressedInt(buf);
-			int check = Bitstream.ReadCompressedInt(buf);
+		    Bitstream.ReadCompressedInt(buf);
 			for (int i=0;i<characters;i++)
 			{
 				ServerCharacterData d = new ServerCharacterData();
