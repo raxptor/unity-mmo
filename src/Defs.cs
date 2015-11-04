@@ -4,7 +4,7 @@ namespace UnityMMO
 {
 	public static class GameInfo
 	{
-		public const uint Version = 1;
+		public const uint Version = 2;
 	}
 	
 	public static class UpdateBlock
@@ -14,7 +14,8 @@ namespace UnityMMO
 		public enum Type
 		{
 			FILTER = 1,
-			CHARACTERS = 2
+			CHARACTERS = 2,
+			PLAYERS = 3
 		}
 	}
 
@@ -32,7 +33,7 @@ namespace UnityMMO
 			CHANGE_WEAPON
 		}
 	}
-
+		
 	public static class DatagramCoding
 	{
 		public const int TYPE_BITS = 3;

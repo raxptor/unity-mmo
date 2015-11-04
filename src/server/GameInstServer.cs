@@ -22,6 +22,7 @@ namespace UnityMMO
 		public WorldServer _worldServer;
 		List<Slot> _slots = new List<Slot>();
 		int _maxPlayers;
+		uint _playerIdCounter = 0;
 		string _version;
 
 		public GameInstServer(WorldServer srv, string version, int maxPlayers)
@@ -74,6 +75,30 @@ namespace UnityMMO
 			}
 		}
 
+		private void SendPlayerTable(PacketLane to, ServerPlayer self)
+		{
+			Bitstream.Buffer b = Bitstream.Buffer.Make(new byte[1024]);
+			DatagramCoding.WriteUpdateBlockHeader(b, UpdateBlock.Type.PLAYERS);
+			Bitstream.PutCompressedUint(b, (uint)_slots.Count);
+			for (int i = 0; i < _slots.Count; i++)
+			{
+				Slot s = _slots[i];
+				s.Player.WriteFullState(b, self == s.Player);
+			}
+			to.Send(b);
+		}
+
+		private void SendPlayerTables()
+		{
+			foreach (Slot s in _slots)
+			{
+				if (s.PacketLaneReliable != null)
+				{
+					SendPlayerTable(s.PacketLaneReliable, s.Player);
+				}
+			}
+		}
+
 		public bool ConnectPlayerStream(string playerId, Cube.GameInstPlayer player, Cube.PacketExchangeDelegate _send_to_me)
 		{
 			lock (this)
@@ -89,7 +114,7 @@ namespace UnityMMO
 				}
 
 				if (s.PlayerId == null)
-					s.Player = new ServerPlayer(playerId);
+					s.Player = new ServerPlayer(playerId, _playerIdCounter++);
 	
 				s.PlayerId = playerId;
 				s.GameInstPlayer = player;
@@ -143,6 +168,7 @@ namespace UnityMMO
 					s.PacketLaneReliable = new PacketLaneReliableOrdered();
 					s.PacketLaneUnreliable = new PacketLaneUnreliableOrdered();
 				}
+				SendPlayerTables();
 			}
 		}
 	
@@ -191,6 +217,7 @@ namespace UnityMMO
 					ResetSlot(s);
 					_slots.Remove(s);
 				}
+				SendPlayerTables();
 			}
 		}
 

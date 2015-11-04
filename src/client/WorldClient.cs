@@ -15,11 +15,29 @@ namespace UnityMMO
 			void OnFilterChange(bool filtered);
 		}
 
+		public struct ItemInstance
+		{
+			public uint Id; // instance id
+			public uint ItemId; // type id
+			public uint Count;
+			public uint InventorySlot;
+		};
+
+		public class Player
+		{
+			public uint Id;
+			public string Name;
+			public bool IsSelf;
+			public List<ItemInstance> Inventory;
+		};
+
 		private IGameInstClient _client;
 		private Dictionary<int, Character> _characters;
+		private List<Player> _players;
 		private PacketLaneReliableOrdered _pl_reliable;
 		private PacketLaneUnreliableOrdered _pl_unreliable;
 		private Character _controlled;
+		private Player _self;
 
 		// last server timestamp
 		private DateTime _startTime = DateTime.Now;
@@ -31,6 +49,7 @@ namespace UnityMMO
 			_characters = new Dictionary<int, Character>();
 			_pl_reliable = new PacketLaneReliableOrdered();
 			_pl_unreliable = new PacketLaneUnreliableOrdered();
+			_players = new List<Player>();
 		}
 
 		public void AddCharacter(int index, Character character)
@@ -92,6 +111,35 @@ namespace UnityMMO
 			}
 		}
 
+		private void OnUpdatePlayersBlock(Bitstream.Buffer b)
+		{
+			_players = new List<Player>();
+			_self = null;
+			uint slots = Bitstream.ReadCompressedUint(b);
+			for (uint i = 0; i < slots; i++)
+			{
+				Player p = new Player();
+				p.Id = Bitstream.ReadCompressedUint(b);
+				p.Name = Bitstream.ReadStringDumb(b);
+				p.IsSelf = Bitstream.ReadBits(b, 1) != 0;
+				if (p.IsSelf)
+				{
+					_self = p;
+					p.Inventory = new List<ItemInstance>();
+					uint invcount = Bitstream.ReadCompressedUint(b);
+					for (uint j = 0; j < invcount; j++)
+					{
+						ItemInstance item = new ItemInstance();
+						item.Id = Bitstream.ReadCompressedUint(b);
+						item.ItemId = Bitstream.ReadCompressedUint(b);
+						item.Count = Bitstream.ReadCompressedUint(b);
+						item.InventorySlot = Bitstream.ReadCompressedUint(b);
+					}
+				}
+				_players.Add(p);
+			}
+		}
+
 		private void OnUpdateCharactersBlock(Bitstream.Buffer b)
 		{
 			uint iteration = Bitstream.ReadBits(b, 24);
@@ -130,6 +178,9 @@ namespace UnityMMO
 						break;
 					case UpdateBlock.Type.CHARACTERS:
 						OnUpdateCharactersBlock(b);
+						break;
+					case UpdateBlock.Type.PLAYERS:
+						OnUpdatePlayersBlock(b);
 						break;
 					default:
 						break;
@@ -221,6 +272,16 @@ namespace UnityMMO
 			_pl_unreliable.Update(deltaTime, delegate(netki.Bitstream.Buffer buf) {
 				SendLanePacket(1, buf);
 			});
+		}
+
+		public List<Player> GetPlayerTable()
+		{
+			return _players;
+		}
+
+		public Player GetPlayerSelf()
+		{
+			return _self;
 		}
 
 		// commands
