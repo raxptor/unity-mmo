@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using netki;
 
 namespace UnityMMO
@@ -84,6 +85,7 @@ namespace UnityMMO
 		public Vector3 StartPosition;
 		public Vector3 DefaultSpawnPos;
 		public float Radius = 0.5f;
+		public uint HP;
 	}
 
 	public class ServerCharacter : Entity
@@ -92,12 +94,21 @@ namespace UnityMMO
 		public ServerCharacterData Data;
 		public ServerPlayer Player;
 		public WorldServer World;
+
+		public bool Spawned = false;
+
 		public Vector3 Position;
 		public Vector3 Velocity;
 		public float Heading = 0;
-		public bool Spawned = false;
+
+		public uint HP, MaxHP;
+
+		public List<ServerPlayer.ItemInstance> Equipped = new List<ServerPlayer.ItemInstance>(); 
+		public bool SendNewEquip = false;
+
 		public string CharacterTypeId;
 		public float TimeOffset = 0;
+
 		public bool GotNew = false;
 
 		public static Vector3 HeadingVector(float heading)
@@ -123,6 +134,7 @@ namespace UnityMMO
 		public void ResetFromData(ServerCharacterData data)
 		{
 			Spawned = false;
+			HP = MaxHP = data.HP;
 		}
 
 		// For testing only.
@@ -147,6 +159,17 @@ namespace UnityMMO
 			}
 		}
 
+		private void WriteEquips(Bitstream.Buffer stream)
+		{
+			foreach (var v in Equipped)
+			{
+				Bitstream.PutBits(stream, 1, 1);
+				Bitstream.PutCompressedUint(stream, v.Id);
+				Bitstream.PutCompressedUint(stream, v.Item.Id);
+			}
+			Bitstream.PutBits(stream, 1, 0);	
+		}
+
 		public override void WriteFullState(Bitstream.Buffer stream)
 		{
 			// which character it is.
@@ -155,11 +178,20 @@ namespace UnityMMO
 			Bitstream.PutFloat(stream, Position.y);
 			Bitstream.PutFloat(stream, Position.z);
 			Bitstream.PutFloat(stream, Heading);
+			WriteEquips(stream);
 			Bitstream.PutCompressedInt(stream, (int)TimeOffset);
 		}
 
 		public override bool WriteReliableUpdate(Bitstream.Buffer stream)
 		{
+			if (SendNewEquip)
+			{
+				Bitstream.PutBits(stream, 1, 1);
+				WriteEquips(stream);
+				Bitstream.PutBits(stream, 1, 0);
+				SendNewEquip = false;
+				return true;
+			}
 			return false;
 		}
 
@@ -167,6 +199,8 @@ namespace UnityMMO
 		{
 			if (GotNew)
 			{
+				Bitstream.PutBits(stream, 1, 0); // no equip
+				Bitstream.PutBits(stream, 1, 1); // char data
 				Bitstream.PutFloat(stream, Position.x);
 				Bitstream.PutFloat(stream, Position.y);
 				Bitstream.PutFloat(stream, Position.z);

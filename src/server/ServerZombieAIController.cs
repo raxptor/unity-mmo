@@ -65,7 +65,6 @@ namespace UnityMMO
 			public Vector3 TargetPathTarget;
 	
 			public State CurState;
-			public uint PathCooldown;
 		};
 
 		public const uint PathCooldownIterations = 300;
@@ -184,10 +183,12 @@ namespace UnityMMO
 			const float tau = 3.1415f * 2.0f;
 
 			Vector3 heading = ServerCharacter.HeadingVector(character.Heading);
-			float angle = (float)Math.Acos(Vector3.Dot(heading, new Vector3(toTargetNorm.x, 0, toTargetNorm.z)));
+			float dot = Vector3.Dot(heading, new Vector3(toTargetNorm.x, 0, toTargetNorm.z));
+			float angle = (float)Math.Acos(dot);
 
 			float turnAmt = Math.Abs(angle);
 			int turnDir = Math.Sign((float)Vector3.Cross(heading, toTargetNorm).y);
+
 			if (turnDir == 0)
 				turnDir = 1;
 
@@ -195,7 +196,8 @@ namespace UnityMMO
 			if (turn > turnAmt)
 				turn = turnAmt;
 
-			character.Heading += turn * turnDir;
+			if (turnAmt > 0.05f)
+				character.Heading += turn * turnDir;
 
 			while (character.Heading > tau)
 				character.Heading -= tau;
@@ -256,10 +258,6 @@ namespace UnityMMO
 				SnapToNavMesh(character, d);
 			}
 
-			float dx = pathTarget.x - character.Position.x;
-			float dz = pathTarget.z - character.Position.z;
-			float dsq = dx * dx + dz * dz; 
-
 			if (_Dist(character.Position, p.track[p.track.Length-1]) < 0.01f)
 			{
 				return false;
@@ -296,7 +294,6 @@ namespace UnityMMO
 			NavMeshMVP nav = character.World._navMVP;
 			int idx;
 			float y;
-			float dx, dy;
 
 			// TODO: Code approximator make path instead.
 			Random r = new Random();
@@ -359,12 +356,6 @@ namespace UnityMMO
 			float dt = 0.001f * (iteration - d.LastControllerUpdate);
 			d.LastControllerUpdate = iteration;
 
-			WorldServer w = character.World;
-
-			int idx;
-			float ground_y;
-			float height_y = 2.00f;
-
 			if (d.GroundedOnPoly == -1)
 			{
 				Fall(character, d, dt);
@@ -395,7 +386,6 @@ namespace UnityMMO
 								{
 									NavMeshMVP nav = character.World._navMVP;
 									int poly;
-									float height;
 									if (nav.GetPoly(patrol_pos, out poly, out patrol_pos.y, d.Island))
 									{
 										d.CurrentPath = PlanPathTo(character, patrol_pos);
@@ -456,7 +446,7 @@ namespace UnityMMO
 							float mz = d.TargetPathTarget.z - character.Position.z;
 							double dd = Math.Sqrt(dx * dx + dz * dz);
 							double dm = Math.Sqrt(mx * mx + mz * mz);
-							if (dd > dm * 0.20f && iteration > d.PathCooldown)
+							if (dd > dm * 0.20f)
 							{
 								if (dx * dx + dz * dz > 250.0f)
 								{
@@ -494,6 +484,7 @@ namespace UnityMMO
 
 							float angle = 1.0f;
 							Vector3 diff = d.Target.Position - character.Position;
+							diff.y = 0.0f;
 							float diffD = (float) Math.Sqrt(Vector3.Dot(diff, diff));
 							if (Vector3.Dot(diff, diff) > 0.01f)
 							{
@@ -511,7 +502,7 @@ namespace UnityMMO
 
 							if (angle > 0.20f)
 							{
-								Console.WriteLine("I can hit, angle=" + angle);
+//								Console.WriteLine("I can hit, angle=" + angle);
 							}
 							else
 							{

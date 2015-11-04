@@ -41,6 +41,31 @@ namespace UnityMMO
 			_config = config;
 		}
 
+		public ServerPlayer MakeNewPlayer(string name, uint id)
+		{
+			ServerPlayer p = new ServerPlayer(name, id);
+
+			// give out random stuff
+			Random r = new Random();
+			uint instid = 10000;
+			uint slot = 0;
+			foreach (outki.Item item in m_itemData.Values)
+			{
+				int count = r.Next(0, (int)(item.StackSize + 1));
+				if (count > 0)
+				{
+					ServerPlayer.ItemInstance inst = new ServerPlayer.ItemInstance();
+					inst.Item = item;
+					inst.Id = ++instid;
+					inst.Count = (uint)count;
+					inst.InventorySlot = slot++;
+					p.Inventory.Add(inst);
+				}
+			}
+			Console.WriteLine("Gave out " + p.Inventory.Count + " items");
+			return p;
+		}
+
 		public void AddItemData(outki.Item item)
 		{
 			if (m_itemData.ContainsKey(item.Id))
@@ -146,14 +171,13 @@ namespace UnityMMO
 					sc.Update(dt);
 				}
 
-//				_activeCharacters[3].MirrorIt(_activeCharacters[0]);
-
 				foreach (WorldObserver obs in _observers)
 				{
 					UpdateCharacterFilter(iteration, obs);
 				}
 
 				UpdateUnreliableAll(iteration);
+				UpdateReliableAll(iteration);
 			}
 		}
 
@@ -201,6 +225,109 @@ namespace UnityMMO
 			nm.LoadFromBytes(data);
 			_levelQueries = nm;
 			_navMVP = nm;
+		}
+
+		// return true if it modified the player.
+		public bool HandlePlayerEvent(GameInstServer.Slot slot, Bitstream.Buffer b)
+		{
+			if (slot == null || slot.Player == null || slot.ServerCharacter == null)
+				return false;
+			
+			uint evt = Bitstream.ReadBits(b, EventBlock.TYPE_BITS);
+			if (b.error != 0)
+				return false;
+			
+			switch (evt)
+			{
+				case (uint)EventBlock.Type.ITEM_EQUIP:
+					{
+						uint equip = Bitstream.ReadBits(b, 1);
+						uint id = Bitstream.ReadCompressedUint(b);
+						return HandlePlayerEquip(slot, equip, id);
+					}
+				case (uint)EventBlock.Type.ITEM_DROP:
+					{
+						uint id = Bitstream.ReadCompressedUint(b);
+						return HandlePlayerDrop(slot, id);
+					}
+				case (uint)EventBlock.Type.ITEM_USE:
+					{
+						uint id = Bitstream.ReadCompressedUint(b);
+						return HandlePlayerUse(slot, id);
+					}
+			}
+			return false;
+		}
+			
+		private bool HandlePlayerDrop(GameInstServer.Slot slot, uint id)
+		{
+			foreach (var v in slot.Player.Inventory)
+			{
+				if (v.Id == id)
+				{
+					Console.WriteLine("Player dropped item.");
+					slot.Player.Inventory.Remove(v);
+					return true;
+				}
+			}
+			return true;
+		}
+
+		private bool HandlePlayerUse(GameInstServer.Slot slot, uint id)
+		{
+			foreach (var v in slot.Player.Inventory)
+			{
+				if (v.Id == id)
+				{
+					v.Count--;
+					Console.WriteLine("Player used item, count=" + v.Count);
+					if (v.Count == 0)
+					{
+						slot.Player.Inventory.Remove(v);
+					}
+					return true;
+				}
+			}
+			return true;
+		}
+
+		private bool HandlePlayerEquip(GameInstServer.Slot slot, uint equip, uint id)
+		{
+			Console.WriteLine("equip:" + equip + " id=" + id);
+
+			List<ServerPlayer.ItemInstance> inventory = slot.Player.Inventory;
+			List<ServerPlayer.ItemInstance> equipped = slot.ServerCharacter.Equipped;
+
+			if (equip == 1)
+			{
+				foreach (var inst in inventory)
+				{
+					if (inst.Id == id)
+					{
+						if (!equipped.Contains(inst))
+						{
+							equipped.Add(inst);
+							slot.ServerCharacter.SendNewEquip = true;
+							Console.WriteLine("Did equip");
+							return false;
+						}
+					}
+				}
+			}
+			else
+			{
+				foreach (var inst in equipped)
+				{
+					if (inst.Id == id)
+					{
+						equipped.Remove(inst);
+						slot.ServerCharacter.SendNewEquip = true;
+						Console.WriteLine("Did unequip");
+						return false;
+					}
+				}
+			}
+			return false;
 		}
 
 		// Characters in view.
@@ -253,5 +380,55 @@ namespace UnityMMO
 				}
 			}
 		}
+
+		private void UpdateReliableAll(uint iteration)
+		{
+			Bitstream.Buffer[] outs = new Bitstream.Buffer[_activeCharacters.Count];
+			Bitstream.Buffer next = null;
+			for (int i = 0; i < _activeCharacters.Count; i++)
+			{
+				if (next == null)
+				{
+					next = Bitstream.Buffer.Make(new byte[128]);
+				}
+				if (_activeCharacters[i].WriteReliableUpdate(next))
+				{
+					Bitstream.SyncByte(next);
+					next.Flip();
+					outs[i] = next;
+					next = null;
+				}
+			}
+
+			foreach (WorldObserver obs in _observers)
+			{
+				Bitstream.Buffer output = null;
+				for (int i = 0; i < _activeCharacters.Count; i++)
+				{
+					if (outs[i] != null && obs.CharacterFilter[i])
+					{
+						if (output == null)
+						{
+							output = Bitstream.Buffer.Make(new byte[512]);
+							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
+							Bitstream.PutBits(output, 24, iteration);
+						}
+						// character index
+						Bitstream.PutBits(output, 16, (uint)i);
+						Bitstream.SyncByte(output);
+						Bitstream.Insert(output, outs[i]);
+						Bitstream.SyncByte(output);
+					}
+				}
+
+				if (output != null)
+				{
+					output.Flip();
+					obs.UpdatesReliable.Add(output);
+				}
+			}
+		}
+
+
 	}
 }

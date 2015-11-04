@@ -85,6 +85,7 @@ namespace UnityMMO
 				Slot s = _slots[i];
 				s.Player.WriteFullState(b, self == s.Player);
 			}
+			b.Flip();
 			to.Send(b);
 		}
 
@@ -114,7 +115,9 @@ namespace UnityMMO
 				}
 
 				if (s.PlayerId == null)
-					s.Player = new ServerPlayer(playerId, _playerIdCounter++);
+				{
+					s.Player = _worldServer.MakeNewPlayer(playerId, ++_playerIdCounter);
+				}
 	
 				s.PlayerId = playerId;
 				s.GameInstPlayer = player;
@@ -230,7 +233,14 @@ namespace UnityMMO
 
 			switch ((DatagramCoding.Type)type)
 			{
-				case DatagramCoding.Type.EVENT:
+				case DatagramCoding.Type.PLAYER_EVENT:
+					{
+						if (_worldServer.HandlePlayerEvent(s, b))
+							SendPlayerTable(s.PacketLaneReliable, s.Player);
+					}
+					break;
+						
+				case DatagramCoding.Type.CHARACTER_EVENT:
 					if (s.Controller != null)
 					{
 						s.Controller.OnControlBlock(b);

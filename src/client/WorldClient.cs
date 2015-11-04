@@ -15,6 +15,11 @@ namespace UnityMMO
 			void OnFilterChange(bool filtered);
 		}
 
+		public interface Entity
+		{
+			void OnUpdateBlock(Bitstream.Buffer block);
+		}
+
 		public struct ItemInstance
 		{
 			public uint Id; // instance id
@@ -33,6 +38,7 @@ namespace UnityMMO
 
 		private IGameInstClient _client;
 		private Dictionary<int, Character> _characters;
+		private Dictionary<uint, Entity> _entities;
 		private List<Player> _players;
 		private PacketLaneReliableOrdered _pl_reliable;
 		private PacketLaneUnreliableOrdered _pl_unreliable;
@@ -47,6 +53,7 @@ namespace UnityMMO
 		{
 			_client = client;
 			_characters = new Dictionary<int, Character>();
+			_entities = new Dictionary<uint, Entity>();
 			_pl_reliable = new PacketLaneReliableOrdered();
 			_pl_unreliable = new PacketLaneUnreliableOrdered();
 			_players = new List<Player>();
@@ -55,6 +62,11 @@ namespace UnityMMO
 		public void AddCharacter(int index, Character character)
 		{
 			_characters.Add(index, character);
+		}
+
+		public void AddEntity(uint id, Entity entity)
+		{
+			_entities.Add(id, entity);
 		}
 
 		public Character GetControlledCharacter()
@@ -113,6 +125,7 @@ namespace UnityMMO
 
 		private void OnUpdatePlayersBlock(Bitstream.Buffer b)
 		{
+			Debug.Log("Players update block");
 			_players = new List<Player>();
 			_self = null;
 			uint slots = Bitstream.ReadCompressedUint(b);
@@ -127,6 +140,8 @@ namespace UnityMMO
 					_self = p;
 					p.Inventory = new List<ItemInstance>();
 					uint invcount = Bitstream.ReadCompressedUint(b);
+					Debug.Log(p.Name + " has inventory items " + invcount);
+
 					for (uint j = 0; j < invcount; j++)
 					{
 						ItemInstance item = new ItemInstance();
@@ -134,10 +149,21 @@ namespace UnityMMO
 						item.ItemId = Bitstream.ReadCompressedUint(b);
 						item.Count = Bitstream.ReadCompressedUint(b);
 						item.InventorySlot = Bitstream.ReadCompressedUint(b);
+						p.Inventory.Add(item);
 					}
 				}
 				_players.Add(p);
 			}
+		}
+
+		private void OnUpdateEntityBlock(Bitstream.Buffer b)
+		{
+			uint entityId = Bitstream.ReadCompressedUint(b);
+			if (!_entities.ContainsKey(entityId))
+			{
+				Debug.Log("Got invalid entity id in update " + entityId);
+			}
+			_entities[entityId].OnUpdateBlock(b);
 		}
 
 		private void OnUpdateCharactersBlock(Bitstream.Buffer b)
@@ -181,6 +207,9 @@ namespace UnityMMO
 						break;
 					case UpdateBlock.Type.PLAYERS:
 						OnUpdatePlayersBlock(b);
+						break;
+					case UpdateBlock.Type.ENTITY:
+						OnUpdateEntityBlock(b);
 						break;
 					default:
 						break;
@@ -284,11 +313,58 @@ namespace UnityMMO
 			return _self;
 		}
 
+		public void Equip(uint itemInstanceId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_EQUIP);
+			Bitstream.PutBits(cmd, 1, 1);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void Unequip(uint itemInstanceId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_EQUIP);
+			Bitstream.PutBits(cmd, 1, 0);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void UseItem(uint itemInstanceId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_USE);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void DropItem(uint itemInstanceId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_DROP);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void Interact(uint entityId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.INTERACT);
+			Bitstream.PutCompressedUint(cmd, entityId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
 		// commands
 		public void DoSpawnCharacter(string id)
 		{
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
-			DatagramCoding.WriteEventBlockHeader(cmd, EventBlock.Type.SPAWN);
+			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.SPAWN);
 			Bitstream.PutStringDumb(cmd, id);
 			Bitstream.PutCompressedUint(cmd, GetClientTime());
 			cmd.Flip();
