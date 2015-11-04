@@ -33,6 +33,8 @@ namespace UnityMMO
 
 		DateTime _startTime = DateTime.Now;
 
+		public uint _timeScale = 1;
+
 		public WorldServer(ILevelQuery query, outki.GameConfiguration config)
 		{
 			_activeCharacters = new List<ServerCharacter>();
@@ -133,7 +135,7 @@ namespace UnityMMO
 
 		private void DoGameUpdate(float dt)
 		{
-			uint iteration = (uint)((DateTime.Now - _startTime).Ticks * 1000 / TimeSpan.TicksPerSecond);
+			uint iteration = _timeScale * (uint)((DateTime.Now - _startTime).Ticks * 1000 / TimeSpan.TicksPerSecond);
 			lock (this)
 			{
 				foreach (ServerCharacter sc in _activeCharacters)

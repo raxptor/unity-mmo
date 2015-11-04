@@ -16,8 +16,9 @@ namespace UnityMMO
 		public float m_MoveSpeed;
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
-		//
+		public float m_EngageDistance = 1.5f;
 
+		//
 		Random m_random = new Random();
 
 		public void Parse(Bitstream.Buffer b)
@@ -31,6 +32,13 @@ namespace UnityMMO
 			m_MinSpawnTime = Bitstream.ReadFloat(b);
 			m_MaxSpawnTime = Bitstream.ReadFloat(b);
 		}
+
+		class Path
+		{
+			public Vector3[] track;
+			public int next;
+			public float time;
+		};
 
 		class Data
 		{
@@ -48,15 +56,15 @@ namespace UnityMMO
 			}
 
 			public int GroundedOnPoly;
+			public ushort Island;
 			public uint LastControllerUpdate;
 			public ServerCharacter Target;
-			public Vector3[] PathToTarget;
-			public Vector3[] PathToPatrol;
+
+			public Path CurrentPath;
 			public bool TargetPathIsComplete;
 			public Vector3 TargetPathTarget;
+	
 			public State CurState;
-			public int PathNext;
-			public float PathT;
 			public uint PathCooldown;
 		};
 
@@ -75,9 +83,8 @@ namespace UnityMMO
 		{
 			Vector3 d;
 			d.x = b.x - a.x;
-			d.y = b.y - a.y;
 			d.z = b.z - a.z;
-			return (float) Math.Sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+			return (float) Math.Sqrt(d.x * d.x + d.z * d.z);
 		}
 
 		private void Fall(ServerCharacter character, Data d, float dt)
@@ -101,12 +108,13 @@ namespace UnityMMO
 					character.Position.y = ground_y;
 					character.Velocity.y = 0;
 					d.GroundedOnPoly = idx;
-					UnityMMO.Debug.Log("Fell to point y=" + ground_y);
+					d.Island = character.World._navMVP.m_island[idx];
+					UnityMMO.Debug.Log("Fell to point y=" + ground_y + " island=" + d.Island);
 				}
 			}
 		}
 
-		private ServerCharacter FindTarget(ServerCharacter character, Data d)
+		private ServerCharacter SpotTarget(ServerCharacter character, Data d)
 		{
 			ServerCharacter res = null;
 			WorldServer w = character.World;
@@ -133,62 +141,147 @@ namespace UnityMMO
 			return res;
 		}
 
-		private bool FollowPath(ServerCharacter character, Data d, float dt, Vector3[] path)
+		Vector3 CurrentGoal(Path p)
 		{
-			float left = 0.0f;
-			Vector3 pathTarget = character.Position;
-				
-			int p0 = d.PathNext;
-			int p1 = d.PathNext + 1;
-			if (p1 < path.Length)
+			int p0 = p.next;
+			int p1 = p.next + 1;
+			if (p1 < p.track.Length)
 			{
-				float dist = _Dist(path[p0], path[p1]);
-				float rate = m_MoveSpeed / dist;
-				float inc = dt * rate;
-
-				d.PathT += inc;
-				if (d.PathT > 1.0f)
-				{
-					left = ((d.PathT - 1.0f) * dist) / m_MoveSpeed;
-					d.PathT = 0.0f;
-					d.PathNext++;
-					pathTarget = path[p1];
-				}
-				else
-				{
-					pathTarget = path[p0] + d.PathT * (path[p1] - path[p0]);
-				}
+				return p.track[p0] + p.time * (p.track[p1] - p.track[p0]);
 			}
 			else
 			{
-				pathTarget = path[path.Length - 1];
+				return p.track[p.track.Length - 1];
+			}	
+		}
+
+		bool AdvancePath(Path p, float dist)
+		{
+			int p0 = p.next;
+			int p1 = p.next + 1;
+			if (p1 >= p.track.Length)
+				return false;
+
+			float amt = 1.0f;
+			float d = _Dist2D(p.track[p0], p.track[p1]);
+			if (d > 0.01f)
+			{
+				amt = dist / d;
 			}
 
-			character.Position.x += 0.50f * (pathTarget.x - character.Position.x);
-			character.Position.y += 0.50f * (pathTarget.y - character.Position.y);
-			character.Position.z += 0.50f * (pathTarget.z - character.Position.z);
+			p.time += amt;
+
+			if (p.time >= 1.0)
+			{
+				p.time = 0.0f;
+				p.next++;
+			}
+			return true;
+		}
+
+		private float TurnTowards(ServerCharacter character, Data d, Vector3 toTargetNorm, float dt)
+		{
+			const float tau = 3.1415f * 2.0f;
+
+			Vector3 heading = ServerCharacter.HeadingVector(character.Heading);
+			float angle = (float)Math.Acos(Vector3.Dot(heading, new Vector3(toTargetNorm.x, 0, toTargetNorm.z)));
+
+			float turnAmt = Math.Abs(angle);
+			int turnDir = Math.Sign((float)Vector3.Cross(heading, toTargetNorm).y);
+			if (turnDir == 0)
+				turnDir = 1;
+
+			float turn = dt * 3.1415f;
+			if (turn > turnAmt)
+				turn = turnAmt;
+
+			character.Heading += turn * turnDir;
+
+			while (character.Heading > tau)
+				character.Heading -= tau;
+			while (character.Heading < 0)
+				character.Heading += tau;
+
+			return Vector3.Dot(toTargetNorm, ServerCharacter.HeadingVector(character.Heading));
+		}
+
+		private bool FollowPath(ServerCharacter character, Data d, float dt, Path p)
+		{
+			Vector3 pathTarget = CurrentGoal(p);
+
+			while (dt > 0.0f && _Dist2D(character.Position, pathTarget) < 0.25f * m_MoveSpeed)
+			{
+				if (AdvancePath(p, dt * m_MoveSpeed))
+					pathTarget = CurrentGoal(p);
+				else
+					break;
+			}
+
+			Vector3 toTarget = pathTarget - character.Position;
+
+			// oblivious to y
+			toTarget.y = 0;
+
+			float toTargetDsq = Vector3.Dot(toTarget, toTarget);
+
+			if (toTargetDsq > 0.00001f)
+			{
+				float toTargetD = (float)Math.Sqrt(toTargetDsq);
+				Vector3 toTargetNorm = (1.0f / (toTargetD) * toTarget);
+
+				float headingAmt = TurnTowards(character, d, toTargetNorm, dt);
+				if (headingAmt < 0)
+				{
+					headingAmt = 0;
+				}
+				
+				float move = headingAmt * dt * m_MoveSpeed;
+				if (move > toTargetD)
+				{
+					move = toTargetD;
+				}
+
+				character.Position = character.Position + move * toTargetNorm;
+				SnapToNavMesh(character, d);
+			}
 
 			float dx = pathTarget.x - character.Position.x;
 			float dz = pathTarget.z - character.Position.z;
 			float dsq = dx * dx + dz * dz; 
 
-			character.Heading = (float)-Math.Atan2(-dx, dz);
-
-			if (_Dist(character.Position, pathTarget) < 0.001f && p1 >= path.Length)
+			if (_Dist(character.Position, p.track[p.track.Length-1]) < 0.01f)
 			{
 				return false;
-			}
-
-			if (left > 0.0f)
-			{
-				return FollowPath(character, d, left, path);
 			}
 
 			return true;
 		}
 
-		public Vector3[] MakeClosePath(ServerCharacter character, Vector3 begin, Vector3 end)
+		private void SnapToNavMesh(ServerCharacter character, Data d)
 		{
+			NavMeshMVP nav = character.World._navMVP;
+			int idx;
+			float y;
+			if (!nav.GetPoly(character.Position, out idx, out y, d.Island))
+			{
+				if (!nav.GetPointInside(character.Position, d.Island, out character.Position))
+				{
+					Console.WriteLine("I am completeley lost! Unspawning.");
+					character.Spawned = false;
+				}
+			}
+			else
+			{
+				character.Position.y = y;
+			}
+		}
+
+		private Path PlanPathTo(ServerCharacter character, Vector3 target)
+		{
+			Data d = character.ControllerData as Data;
+
+			SnapToNavMesh(character, d);
+
 			NavMeshMVP nav = character.World._navMVP;
 			int idx;
 			float y;
@@ -196,16 +289,31 @@ namespace UnityMMO
 
 			// TODO: Code approximator make path instead.
 			Random r = new Random();
-			Vector3 tryend = end;
+			Vector3 tryend = target;
 			tryend.y += 0.20f;
+
 			for (int i = 0; i < 10; i++)
 			{
 				if (nav.GetPoly(tryend, out idx, out y))
-					return nav.MakePath(begin, tryend, null);
-
-				tryend.x = end.x + (float)(r.NextDouble() - 0.5f) * 0.25f;
-				tryend.z = end.z + (float)(r.NextDouble() - 0.5f) * 0.25f;
+				{
+					Path p = new Path();
+					p.track = nav.MakePath(character.Position, tryend, null, d.Island);
+					if (p.track == null)
+						continue;
+					
+					p.next = 0;
+					p.time = 0;
+					if (Math.Abs(p.track[0].y - character.Position.y) > 0.10f)
+					{
+						Console.WriteLine("height jump!");
+					}
+					return p;
+				}
+				tryend.x = target.x + (float)(r.NextDouble() - 0.5f) * 0.25f;
+				tryend.z = target.z + (float)(r.NextDouble() - 0.5f) * 0.25f;
 			}
+
+
 			return null;
 		}
 
@@ -255,69 +363,62 @@ namespace UnityMMO
 
 			if (d.GroundedOnPoly != -1)
 			{
-				ServerCharacter tgt = FindTarget(character, d);
-				if (d.CurState == Data.State.IDLE && tgt != null)
-					d.CurState = Data.State.PATROL;
-
 				switch (d.CurState)
 				{
 					case Data.State.IDLE:
 						{
-							if (iteration > d.PathCooldown)
+							d.CurrentPath = null;
+							d.CurState = Data.State.PATROL;
+							d.Target = null;
+							break;
+						}
+
+					case Data.State.PATROL:
+						{
+							if (d.CurrentPath == null)
 							{
-								// Make patrol.
+								// Find a path to patrol.
 								Vector3 patrol_pos = character.Data.DefaultSpawnPos;
 								patrol_pos.x += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
 								patrol_pos.z += (float)(2.0f * m_PatrolRadius * (m_random.NextDouble() - 0.5f));
-
-								if (_Dist2D(patrol_pos, character.Position) > 2.0f)
+								if (_Dist2D(patrol_pos, character.Position) > (m_PatrolRadius * 0.25f))
 								{
 									NavMeshMVP nav = character.World._navMVP;
 									int poly;
 									float height;
-									if (nav.GetPoly(patrol_pos, out poly, out height))
+									if (nav.GetPoly(patrol_pos, out poly, out patrol_pos.y, d.Island))
 									{
-										patrol_pos.y = height;
-										d.PathToPatrol = nav.MakePath(character.Position, patrol_pos, null);
-										if (d.PathToPatrol != null)
+										d.CurrentPath = PlanPathTo(character, patrol_pos);
+										if (d.CurrentPath != null)
 										{
-											Console.WriteLine("Patrol from " + character.Position + " to " + patrol_pos);
-											d.PathNext = 0;
-											d.PathT = 0;
-											d.CurState = Data.State.PATROL;
+											Console.WriteLine("I will patrol from " + character.Position + " to " + patrol_pos);
 										}
 									}
 								}
-								d.PathCooldown = iteration + PathCooldownIterations;
 							}
-						}
-						break;
 
-					case Data.State.PATROL:
-						{
-							//
-							if (tgt != null && iteration > d.PathCooldown)
+							if (d.CurrentPath != null)
 							{
-								d.PathCooldown = iteration + PathCooldownIterations;
-								d.PathToTarget = MakeClosePath(character, character.Position, tgt.Position);
-								if (d.PathToTarget != null)
+								if (!FollowPath(character, d, dt, d.CurrentPath))
 								{
-									d.TargetPathTarget = tgt.Position;
-									d.TargetPathIsComplete = d.PathToTarget[d.PathToTarget.Length - 1] == tgt.Position;
-									d.PathNext = 0;
-									d.PathT = 0;
-									d.Target = tgt;
-									d.CurState = Data.State.CHASE;
-									break;
+									Console.WriteLine("Patrol done");
+									d.CurrentPath = null;
+									d.CurState = Data.State.IDLE;
 								}
 							}
 
-							if (d.PathToPatrol != null)
-							{						
-								if (!FollowPath(character, d, dt, d.PathToPatrol))
+							ServerCharacter potTarget = SpotTarget(character, d);
+							if (potTarget != null)
+							{
+								Path p = PlanPathTo(character, potTarget.Position);
+								if (p != null)
 								{
-									Console.WriteLine("Done patroling, going idle.");
-									d.CurState = Data.State.IDLE;
+									Console.WriteLine("Going into chase mode!");
+									d.Target = potTarget;
+									d.TargetPathTarget = potTarget.Position;
+									d.TargetPathIsComplete = potTarget.Position == p.track[p.track.Length - 1];
+									d.CurrentPath = p;
+									d.CurState = Data.State.CHASE;
 								}
 							}
 						}
@@ -325,49 +426,91 @@ namespace UnityMMO
 
 					case Data.State.CHASE:
 						{
-							if (!d.Target.Spawned)
+							if (d.CurrentPath == null || d.Target == null || !d.Target.Spawned)
 							{
-								Console.WriteLine("Target unspawned, going idle.");
+								Console.WriteLine("Target unspawned, lost target or it unspawned. Idling.");
 								d.CurState = Data.State.IDLE;
+								break;
 							}
 
-							Vector3 last = d.PathToTarget[d.PathToTarget.Length - 1];
-							// target to character
+							if (!FollowPath(character, d, dt, d.CurrentPath))
+							{
+								Console.WriteLine("Path following done, I go idle.");
+								d.CurState = Data.State.IDLE;
+								break;
+							}
+	
 							float dx = d.TargetPathTarget.x - d.Target.Position.x;
 							float dz = d.TargetPathTarget.z - d.Target.Position.z;
-							// me to character
-							float mx = last.x - character.Position.x;
-							float mz = last.z - character.Position.z;
-
-							double dd = Math.Sqrt(dx*dx + dz*dz);
+							float mx = d.TargetPathTarget.x - character.Position.x;
+							float mz = d.TargetPathTarget.z - character.Position.z;
+							double dd = Math.Sqrt(dx * dx + dz * dz);
 							double dm = Math.Sqrt(mx * mx + mz * mz);
 							if (dd > dm * 0.20f && iteration > d.PathCooldown)
 							{
-								d.PathCooldown = iteration + PathCooldownIterations;
-								Vector3[] potNew = MakeClosePath(character, character.Position, d.Target.Position);
-								if (potNew != null)
-								{
-									d.PathToTarget = potNew;
-									d.PathNext = 0;
-									d.PathT = 0;
-									d.TargetPathTarget = tgt.Position;
-									d.TargetPathIsComplete = d.PathToTarget[d.PathToTarget.Length - 1] == tgt.Position;
-								}
-
 								if (dx * dx + dz * dz > 250.0f)
 								{
 									Debug.Log("Target ran away super far");
 									d.CurState = Data.State.IDLE;
+									break;
+								}
+
+								Path p = PlanPathTo(character, d.Target.Position);
+								if (p != null)
+								{
+									Console.WriteLine("Upgraded path");
+									d.CurrentPath = p;
+									d.TargetPathTarget = d.Target.Position;
+									d.TargetPathIsComplete = d.Target.Position == p.track[p.track.Length - 1];
 								}
 							}
+						}
 
-							if (!FollowPath(character, d, dt, d.PathToTarget))
+						if (_Dist(d.Target.Position, character.Position) < m_EngageDistance)
+						{
+							Console.WriteLine("Engaging in attack!");
+							d.CurState = Data.State.ATTACK;
+						}
+						break;
+
+					case Data.State.ATTACK:
+						{
+							if (!d.Target.Spawned)
 							{
+								Console.WriteLine("Target died, going idle");
 								d.CurState = Data.State.IDLE;
 								break;
 							}
+
+							float angle = 1.0f;
+							Vector3 diff = d.Target.Position - character.Position;
+							float diffD = (float) Math.Sqrt(Vector3.Dot(diff, diff));
+							if (Vector3.Dot(diff, diff) > 0.01f)
+							{
+								Vector3 diffNorm = (1.0f / (float)diffD) * diff;
+								angle = TurnTowards(character, d, diffNorm, dt);
+							}
+
+							if (diffD > (m_EngageDistance * 1.05f))
+							{
+								Console.WriteLine("Target moved away, getting closer");
+								d.CurrentPath = PlanPathTo(character, d.Target.Position);
+								d.CurState = Data.State.CHASE;
+								break;
+							}
+
+							if (angle > 0.20f)
+							{
+								Console.WriteLine("I can hit, angle=" + angle);
+							}
+							else
+							{
+								Console.WriteLine("Attack state:" + diffD + " angle=" + angle);
+							}
+
+
+							break;
 						}
-						break;
 				}
 			}
 

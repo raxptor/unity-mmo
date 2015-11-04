@@ -96,7 +96,7 @@ namespace UnityMMO
 				SetupSharedEntity(buf, server, type, id);
 			}
 
-			string editorPrefix = Bitstream.ReadStringDumb(buf);
+			Bitstream.ReadStringDumb(buf);
 			string pathFile = Bitstream.ReadStringDumb(buf);
 			Debug.Log("Path file is [" + pathFile + "]");
 

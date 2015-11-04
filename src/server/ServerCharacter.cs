@@ -99,6 +99,15 @@ namespace UnityMMO
 		public float TimeOffset = 0;
 		public bool GotNew = false;
 
+		public static Vector3 HeadingVector(float heading)
+		{
+			return new Vector3(
+				(float)Math.Sin(heading),
+				0,
+				(float)Math.Cos(heading)
+			);
+		}
+
 		public object ControllerData = null;
 
 		// controller
