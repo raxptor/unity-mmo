@@ -34,11 +34,22 @@ namespace UnityMMO
 		DateTime _startTime = DateTime.Now;
 
 		public uint _timeScale = 1;
+		private uint _itemInstanceIDs = 1234;
 
 		public WorldServer(ILevelQuery query, outki.GameConfiguration config)
 		{
 			_activeCharacters = new List<ServerCharacter>();
 			_config = config;
+		}
+
+		public ServerPlayer.ItemInstance MakeItem(outki.Item item, uint count, uint slot)
+		{
+			ServerPlayer.ItemInstance inst = new ServerPlayer.ItemInstance();
+			inst.Item = item;
+			inst.Id = ++_itemInstanceIDs;
+			inst.Count = count;
+			inst.InventorySlot = slot;
+			return inst;
 		}
 
 		public ServerPlayer MakeNewPlayer(string name, uint id)
@@ -47,19 +58,13 @@ namespace UnityMMO
 
 			// give out random stuff
 			Random r = new Random();
-			uint instid = 10000;
 			uint slot = 0;
 			foreach (outki.Item item in m_itemData.Values)
 			{
 				int count = r.Next(0, (int)(item.StackSize + 1));
 				if (count > 0)
 				{
-					ServerPlayer.ItemInstance inst = new ServerPlayer.ItemInstance();
-					inst.Item = item;
-					inst.Id = ++instid;
-					inst.Count = (uint)count;
-					inst.InventorySlot = slot++;
-					p.Inventory.Add(inst);
+					p.Inventory.Add(MakeItem(item, (uint)count, slot++));
 				}
 			}
 			Console.WriteLine("Gave out " + p.Inventory.Count + " items");
@@ -95,6 +100,28 @@ namespace UnityMMO
 			}
 		}
 
+		public void SyncNonCharacters(WorldObserver observer)
+		{
+			// Sync mandatory state
+			Bitstream.Buffer outp = Bitstream.Buffer.Make(new byte[4096]);
+			DatagramCoding.WriteUpdateBlockHeader(outp, UpdateBlock.Type.ENTITIES);
+
+			for (int i = 0; i < _activeEntities.Count; i++)
+			{
+				Bitstream.PutCompressedUint(outp, _activeEntities[i].m_Id);
+				Bitstream.SyncByte(outp);
+				_activeEntities[i].WriteFullState(outp);
+				Bitstream.SyncByte(outp);
+				if (outp.error != 0)
+				{
+					Console.WriteLine("Entity sync buffer overflow!");
+				}
+			}
+			outp.Flip();
+			Console.WriteLine("Sending observer entity update block of " + outp.bufsize + " bytes");
+			observer.UpdatesReliable.Add(outp);
+		}
+
 		public WorldObserver AddObserver()
 		{
 			WorldObserver ws = new WorldObserver();
@@ -103,6 +130,7 @@ namespace UnityMMO
 			lock (this)
 			{
 				_observers.Add(ws);
+				SyncNonCharacters(ws);
 			}
 			return ws;
 		}
@@ -163,6 +191,11 @@ namespace UnityMMO
 			uint iteration = _timeScale * (uint)((DateTime.Now - _startTime).Ticks * 1000 / TimeSpan.TicksPerSecond);
 			lock (this)
 			{
+				foreach (Entity entity in _activeEntities)
+				{
+					entity.Update(dt);
+				}
+
 				foreach (ServerCharacter sc in _activeCharacters)
 				{
 					if (sc.Controller != null)
@@ -384,6 +417,8 @@ namespace UnityMMO
 		private void UpdateReliableAll(uint iteration)
 		{
 			Bitstream.Buffer[] outs = new Bitstream.Buffer[_activeCharacters.Count];
+			Bitstream.Buffer[] entityOuts = new Bitstream.Buffer[_activeEntities.Count];
+
 			Bitstream.Buffer next = null;
 			for (int i = 0; i < _activeCharacters.Count; i++)
 			{
@@ -427,8 +462,48 @@ namespace UnityMMO
 					obs.UpdatesReliable.Add(output);
 				}
 			}
+				
+			for (int i=0;i<_activeEntities.Count;i++)
+			{
+				if (next == null)
+				{
+					next = Bitstream.Buffer.Make(new byte[128]);
+				}
+				if (_activeEntities[i].WriteReliableUpdate(next))
+				{
+					Bitstream.SyncByte(next);
+					next.Flip();
+					entityOuts[i] = next;
+					next = null;
+				}
+			}
+				
+			foreach (WorldObserver obs in _observers)
+			{
+				Bitstream.Buffer output = null;
+				for (int i = 0; i < _activeEntities.Count; i++)
+				{
+					if (entityOuts[i] != null)
+					{
+						if (output == null)
+						{
+							output = Bitstream.Buffer.Make(new byte[1024]);
+							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.ENTITIES);
+						}
+						// character index
+						Bitstream.PutCompressedUint(output, _activeEntities[i].m_Id);
+						Bitstream.SyncByte(output);
+						Bitstream.Insert(output, entityOuts[i]);
+						Bitstream.SyncByte(output);
+					}
+				}
+
+				if (output != null)
+				{
+					output.Flip();
+					obs.UpdatesReliable.Add(output);
+				}
+			}
 		}
-
-
 	}
 }

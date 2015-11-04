@@ -49,6 +49,18 @@ namespace UnityMMO
 						{
 							break;
 						}
+					case EventBlock.Type.INTERACT:
+						{
+							uint entityId = Bitstream.ReadCompressedUint(buf);
+							foreach (Entity e in character.World._activeEntities)
+							{
+								if (e.m_Id == entityId)
+								{
+									e.OnInteract(character);
+								}
+							}
+							break;
+						}
 					case EventBlock.Type.SPAWN:
 						{
 							string CharacterId = Bitstream.ReadStringDumb(buf);

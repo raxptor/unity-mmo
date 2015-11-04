@@ -16,7 +16,7 @@ namespace UnityMMO
 			FILTER = 1,
 			CHARACTERS = 2,
 			PLAYERS = 3,
-			ENTITY = 4,
+			ENTITIES = 4,
 		}
 	}
 

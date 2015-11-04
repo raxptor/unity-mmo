@@ -236,7 +236,7 @@ namespace UnityMMO
 				case DatagramCoding.Type.PLAYER_EVENT:
 					{
 						if (_worldServer.HandlePlayerEvent(s, b))
-							SendPlayerTable(s.PacketLaneReliable, s.Player);
+							s.Player.InventoryChanged = true;
 					}
 					break;
 						
@@ -264,6 +264,17 @@ namespace UnityMMO
 
 					if (s.PacketLaneReliable != null)
 					{
+						if (s.Player.InventoryChanged)
+						{
+							SendPlayerTable(s.PacketLaneReliable, s.Player);
+							s.Player.InventoryChanged = false;
+						}
+						foreach (Bitstream.Buffer not in s.Player.Notifications)
+						{
+							s.PacketLaneReliable.Send(not);
+						}
+						s.Player.Notifications.Clear();
+
 						Bitstream.Buffer tmp;
 						while (true)
 						{

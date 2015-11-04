@@ -45,6 +45,8 @@ namespace UnityMMO
 		private Character _controlled;
 		private Player _self;
 
+		public List<Bitstream.Buffer> _player_events = new List<Bitstream.Buffer>();
+
 		// last server timestamp
 		private DateTime _startTime = DateTime.Now;
 		private uint _startIteration = 0;
@@ -158,12 +160,18 @@ namespace UnityMMO
 
 		private void OnUpdateEntityBlock(Bitstream.Buffer b)
 		{
-			uint entityId = Bitstream.ReadCompressedUint(b);
-			if (!_entities.ContainsKey(entityId))
+			while (b.BitsLeft() > 0)
 			{
-				Debug.Log("Got invalid entity id in update " + entityId);
+				uint entityId = Bitstream.ReadCompressedUint(b);
+				Bitstream.SyncByte(b);
+				if (!_entities.ContainsKey(entityId))
+				{
+					Debug.Log("Got invalid entity id in update " + entityId);
+					break;
+				}
+				_entities[entityId].OnUpdateBlock(b);
+				Bitstream.SyncByte(b);
 			}
-			_entities[entityId].OnUpdateBlock(b);
 		}
 
 		private void OnUpdateCharactersBlock(Bitstream.Buffer b)
@@ -185,12 +193,29 @@ namespace UnityMMO
 			}
 		}
 
+		public Bitstream.Buffer PollPlayerEvent()
+		{
+			if (_player_events.Count > 0)
+			{
+				Bitstream.Buffer b = _player_events[0];
+				_player_events.RemoveAt(0);
+				return b;
+			}
+			return null;
+		}
+
 		private void OnLanePacket(Bitstream.Buffer b, bool reliable)
 		{
 			DatagramCoding.Type type = (DatagramCoding.Type)Bitstream.ReadBits(b, DatagramCoding.TYPE_BITS);
 
 			if (b.error != 0)
 				return;
+
+			if (type == DatagramCoding.Type.PLAYER_EVENT)
+			{
+				_player_events.Add(b);
+				return;
+			}
 
 			if (type == DatagramCoding.Type.UPDATE)
 			{
@@ -208,7 +233,7 @@ namespace UnityMMO
 					case UpdateBlock.Type.PLAYERS:
 						OnUpdatePlayersBlock(b);
 						break;
-					case UpdateBlock.Type.ENTITY:
+					case UpdateBlock.Type.ENTITIES:
 						OnUpdateEntityBlock(b);
 						break;
 					default:
