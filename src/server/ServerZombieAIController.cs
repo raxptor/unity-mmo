@@ -241,7 +241,18 @@ namespace UnityMMO
 					move = toTargetD;
 				}
 
-				character.Position = character.Position + move * toTargetNorm;
+				Vector3 next = character.Position + move * toTargetNorm;
+
+				NavHelper.HitInfo hi;
+				if (!NavHelper.TestCharacterMove(character, next, character.World._activeCharacters, out hi))
+				{
+					character.Position = next;
+				}
+				else
+				{
+					character.Position = character.Position + hi.t * move * toTargetNorm;
+				}
+
 				SnapToNavMesh(character, d);
 			}
 
@@ -312,7 +323,6 @@ namespace UnityMMO
 				tryend.x = target.x + (float)(r.NextDouble() - 0.5f) * 0.25f;
 				tryend.z = target.z + (float)(r.NextDouble() - 0.5f) * 0.25f;
 			}
-
 
 			return null;
 		}

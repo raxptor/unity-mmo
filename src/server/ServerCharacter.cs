@@ -83,6 +83,7 @@ namespace UnityMMO
 		public bool HumanControllable;
 		public Vector3 StartPosition;
 		public Vector3 DefaultSpawnPos;
+		public float Radius = 0.5f;
 	}
 
 	public class ServerCharacter : Entity
