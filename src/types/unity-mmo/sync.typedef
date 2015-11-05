@@ -1,6 +1,7 @@
 MMOHumanAttachController @netki
 {
 	uint Character
+	float FilterRange
 }
 
 MMOControllerSpawn @netki

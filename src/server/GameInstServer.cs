@@ -167,7 +167,7 @@ namespace UnityMMO
 				if (s.Observer != null)
 					_worldServer.RemoveObserver(s.Observer);
 
-				s.Observer = _worldServer.AddObserver();
+				s.Observer = _worldServer.AddObserver(s.ServerCharacter);
 			}
 			return true;
 		}

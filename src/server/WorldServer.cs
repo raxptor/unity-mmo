@@ -6,7 +6,9 @@ namespace UnityMMO
 {
 	public class WorldObserver
 	{
+		public ServerCharacter TrackCharacter;
 		public Vector3 FilterPosition;
+		public float FilterRange;
 		public bool[] CharacterFilter;
 		public List<Bitstream.Buffer> UpdatesReliable = new List<Bitstream.Buffer>();
 		public List<Bitstream.Buffer> UpdatesUnreliable = new List<Bitstream.Buffer>();
@@ -121,10 +123,12 @@ namespace UnityMMO
 			observer.UpdatesReliable.Add(outp);
 		}
 
-		public WorldObserver AddObserver()
+		public WorldObserver AddObserver(ServerCharacter tracking)
 		{
 			WorldObserver ws = new WorldObserver();
+			ws.TrackCharacter = tracking;
 			ws.CharacterFilter = new bool[_activeCharacters.Count];
+			ws.FilterRange = 50.0f;
 
 			lock (this)
 			{
@@ -205,6 +209,8 @@ namespace UnityMMO
 
 				foreach (WorldObserver obs in _observers)
 				{
+					if (obs.TrackCharacter != null)
+						obs.FilterPosition = obs.TrackCharacter.Position;
 					UpdateCharacterFilter(iteration, obs);
 				}
 
@@ -222,9 +228,32 @@ namespace UnityMMO
 			Bitstream.Buffer outp = null;
 			for (int i = 0; i < _activeCharacters.Count; i++)
 			{
-				bool target = _activeCharacters[i].Spawned;
+				bool target = false;
+
+				if (_activeCharacters[i].Spawned)
+				{
+					// use what we had and see if it needs to change
+					// depending on distance
+					target = obs.CharacterFilter[i];
+
+					Vector3 diff = obs.FilterPosition - _activeCharacters[i].Position;
+					float distSq = Vector3.Dot(diff, diff);
+					// is visible but too far away (some hysteresis here) 
+					if (obs.CharacterFilter[i] && distSq > obs.FilterRange * obs.FilterRange * 1.15f)
+					{
+						Console.WriteLine(i + " Going out of filter range " + obs.FilterPosition + " dist=" + Math.Sqrt(distSq));
+						target = false;
+					}
+					if (!obs.CharacterFilter[i] && distSq < obs.FilterRange * obs.FilterRange)
+					{
+						Console.WriteLine("Entering filter range");
+						target = true;
+					}
+				}
+
 				if (obs.CharacterFilter[i] != target)
 				{	
+					Console.WriteLine(i + " " + _activeCharacters[i].Spawned + " " + obs.CharacterFilter[i] + " => " + target);
 					obs.CharacterFilter[i] = target;
 
 					if (outp == null)
