@@ -17,7 +17,7 @@ namespace UnityMMO
 
 		public interface Entity
 		{
-			void OnUpdateBlock(Bitstream.Buffer block);
+			void OnUpdateBlock(uint iteration, Bitstream.Buffer block);
 		}
 
 		public struct ItemInstance
@@ -79,7 +79,7 @@ namespace UnityMMO
 
 		private void OnUpdateFilterBlock(Bitstream.Buffer b)
 		{
-			uint iteration = Bitstream.ReadBits(b, 24);
+			uint iteration = Bitstream.ReadCompressedUint(b);
 
 			while (true)
 			{
@@ -162,6 +162,8 @@ namespace UnityMMO
 
 		private void OnUpdateEntityBlock(Bitstream.Buffer b)
 		{
+			uint iteration = Bitstream.ReadCompressedUint(b);
+
 			while (b.BitsLeft() > 0)
 			{
 				uint entityId = Bitstream.ReadCompressedUint(b);
@@ -171,14 +173,14 @@ namespace UnityMMO
 					Debug.Log("Got invalid entity id in update " + entityId);
 					break;
 				}
-				_entities[entityId].OnUpdateBlock(b);
+				_entities[entityId].OnUpdateBlock(iteration, b);
 				Bitstream.SyncByte(b);
 			}
 		}
 
 		private void OnUpdateCharactersBlock(Bitstream.Buffer b)
 		{
-			uint iteration = Bitstream.ReadBits(b, 24);
+			uint iteration = Bitstream.ReadCompressedUint(b);
 			OnServerTimestamp(iteration);
 			while (true)
 			{

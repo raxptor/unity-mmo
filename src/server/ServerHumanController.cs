@@ -56,7 +56,7 @@ namespace UnityMMO
 							{
 								if (e.m_Id == entityId)
 								{
-									e.OnInteract(character);
+									e.OnInteract(iteration, character);
 								}
 							}
 							break;

@@ -101,12 +101,12 @@ namespace UnityMMO
 			}
 		}
 
-		public void SyncNonCharacters(WorldObserver observer)
+		public void SyncNonCharacters(uint iteration, WorldObserver observer)
 		{
 			// Sync mandatory state
 			Bitstream.Buffer outp = Bitstream.Buffer.Make(new byte[4096]);
 			DatagramCoding.WriteUpdateBlockHeader(outp, UpdateBlock.Type.ENTITIES);
-
+			Bitstream.PutCompressedUint(outp, iteration); // hax
 			for (int i = 0; i < _activeEntities.Count; i++)
 			{
 				Bitstream.PutCompressedUint(outp, _activeEntities[i].m_Id);
@@ -133,7 +133,7 @@ namespace UnityMMO
 			lock (this)
 			{
 				_observers.Add(ws);
-				SyncNonCharacters(ws);
+				SyncNonCharacters(0, ws);
 			}
 			return ws;
 		}
@@ -196,7 +196,7 @@ namespace UnityMMO
 			{
 				foreach (Entity entity in _activeEntities)
 				{
-					entity.Update(dt);
+					entity.Update(iteration, dt);
 				}
 
 				foreach (ServerCharacter sc in _activeCharacters)
@@ -204,7 +204,7 @@ namespace UnityMMO
 					if (sc.Controller != null)
 						sc.Controller.ControlMe(iteration, sc);
 
-					sc.Update(dt);
+					sc.Update(iteration, dt);
 				}
 
 				foreach (WorldObserver obs in _observers)
@@ -260,7 +260,7 @@ namespace UnityMMO
 					{
 						outp = Bitstream.Buffer.Make(new byte[1024]);
 						DatagramCoding.WriteUpdateBlockHeader(outp, UpdateBlock.Type.FILTER);
-						Bitstream.PutBits(outp, 24, iteration);
+						Bitstream.PutCompressedUint(outp, iteration);
 					}
 
 					Bitstream.PutBits(outp, 15, (uint)i);
@@ -321,7 +321,7 @@ namespace UnityMMO
 						{
 							output = Bitstream.Buffer.Make(new byte[512]);
 							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
-							Bitstream.PutBits(output, 24, iteration);
+							Bitstream.PutCompressedUint(output, iteration);
 						}
 						// character index
 						Bitstream.PutBits(output, 16, (uint)i);
@@ -371,7 +371,7 @@ namespace UnityMMO
 						{
 							output = Bitstream.Buffer.Make(new byte[512]);
 							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
-							Bitstream.PutBits(output, 24, iteration);
+							Bitstream.PutCompressedUint(output, iteration);
 						}
 						// character index
 						Bitstream.PutBits(output, 16, (uint)i);
@@ -414,8 +414,8 @@ namespace UnityMMO
 						{
 							output = Bitstream.Buffer.Make(new byte[1024]);
 							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.ENTITIES);
+							Bitstream.PutCompressedUint(output, iteration);
 						}
-						// character index
 						Bitstream.PutCompressedUint(output, _activeEntities[i].m_Id);
 						Bitstream.SyncByte(output);
 						Bitstream.Insert(output, entityOuts[i]);

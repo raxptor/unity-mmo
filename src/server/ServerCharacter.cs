@@ -151,7 +151,7 @@ namespace UnityMMO
 			GotNew = from.GotNew;
 		}
 
-		public override void Update(float dt)
+		public override void Update(uint iteration, float dt)
 		{
 			if (!Spawned)
 			{

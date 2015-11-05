@@ -114,6 +114,9 @@ namespace UnityMMO
 				se.m_Position.y = Bitstream.ReadFloat(buf);
 				se.m_Position.z = Bitstream.ReadFloat(buf);
 				se.m_MaxInteractionRadius = Bitstream.ReadFloat(buf);
+				se.m_RespawnTimeMin = Bitstream.ReadFloat(buf);
+				se.m_RespawnTimeMax = Bitstream.ReadFloat(buf);
+				se.m_UseTime = Bitstream.ReadFloat(buf);
 				server.AddEntity(se);
 				Debug.Log("Adding scavenge at " + se.m_Position);
 			}
