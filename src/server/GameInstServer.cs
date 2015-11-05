@@ -24,12 +24,15 @@ namespace UnityMMO
 		int _maxPlayers;
 		uint _playerIdCounter = 0;
 		string _version;
+		private PlayerDataSynchronizer _dataSynchronizer;
 
-		public GameInstServer(WorldServer srv, string version, int maxPlayers)
+
+		public GameInstServer(WorldServer srv, PlayerDataSynchronizer dataSynchronizer, string version, int maxPlayers)
 		{
 			_version = version;
 			_maxPlayers = maxPlayers;
 			_worldServer = srv;
+			_dataSynchronizer = dataSynchronizer; 
 		}
 
 		public bool CanPlayerReconnect(string playerId)
@@ -70,6 +73,10 @@ namespace UnityMMO
 			}
 			if (s.ServerCharacter != null)
 			{
+				if (_dataSynchronizer != null)
+				{
+					_dataSynchronizer.SavePlayer(s.PlayerId, 0, s.Player, s.ServerCharacter);
+				}
 				_worldServer.StopControlling(s.ServerCharacter);
 				s.ServerCharacter = null;
 			}
@@ -144,7 +151,13 @@ namespace UnityMMO
 				if (s.ServerCharacter == null)
 					return false;
 
+				s.ServerCharacter.ResetFromData(s.ServerCharacter.Data);
 				s.ServerCharacter.Player = s.Player;
+
+				if (_dataSynchronizer != null)
+				{
+					_dataSynchronizer.RestorePlayer(s.PlayerId, s.Player, s.ServerCharacter);
+				}
 
 				// got contror of a character.
 				netki.MMOHumanAttachController status = new netki.MMOHumanAttachController();
@@ -235,8 +248,7 @@ namespace UnityMMO
 			{
 				case DatagramCoding.Type.PLAYER_EVENT:
 					{
-						if (_worldServer.HandlePlayerEvent(s, b))
-							s.Player.InventoryChanged = true;
+						ServerPlayerCommands.HandlePlayerEvent(s, b);
 					}
 					break;
 						

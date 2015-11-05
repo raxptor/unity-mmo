@@ -35,7 +35,9 @@ namespace UnityMMO
 			ACQUIRED_ITEM,
 			ITEM_EQUIP,
 			ITEM_DROP,
-			ITEM_USE
+			ITEM_USE,
+			ITEM_MOVE,
+			CRAFT,
 		}
 	}
 		

@@ -48,7 +48,6 @@ namespace UnityMMO
 			inst.Item = item;
 			inst.Id = ++_itemInstanceIDs;
 			inst.Count = count;
-			inst.InventorySlot = slot;
 			return inst;
 		}
 
@@ -259,110 +258,7 @@ namespace UnityMMO
 			_levelQueries = nm;
 			_navMVP = nm;
 		}
-
-		// return true if it modified the player.
-		public bool HandlePlayerEvent(GameInstServer.Slot slot, Bitstream.Buffer b)
-		{
-			if (slot == null || slot.Player == null || slot.ServerCharacter == null)
-				return false;
 			
-			uint evt = Bitstream.ReadBits(b, EventBlock.TYPE_BITS);
-			if (b.error != 0)
-				return false;
-			
-			switch (evt)
-			{
-				case (uint)EventBlock.Type.ITEM_EQUIP:
-					{
-						uint equip = Bitstream.ReadBits(b, 1);
-						uint id = Bitstream.ReadCompressedUint(b);
-						return HandlePlayerEquip(slot, equip, id);
-					}
-				case (uint)EventBlock.Type.ITEM_DROP:
-					{
-						uint id = Bitstream.ReadCompressedUint(b);
-						return HandlePlayerDrop(slot, id);
-					}
-				case (uint)EventBlock.Type.ITEM_USE:
-					{
-						uint id = Bitstream.ReadCompressedUint(b);
-						return HandlePlayerUse(slot, id);
-					}
-			}
-			return false;
-		}
-			
-		private bool HandlePlayerDrop(GameInstServer.Slot slot, uint id)
-		{
-			foreach (var v in slot.Player.Inventory)
-			{
-				if (v.Id == id)
-				{
-					Console.WriteLine("Player dropped item.");
-					slot.Player.Inventory.Remove(v);
-					return true;
-				}
-			}
-			return true;
-		}
-
-		private bool HandlePlayerUse(GameInstServer.Slot slot, uint id)
-		{
-			foreach (var v in slot.Player.Inventory)
-			{
-				if (v.Id == id)
-				{
-					v.Count--;
-					Console.WriteLine("Player used item, count=" + v.Count);
-					if (v.Count == 0)
-					{
-						slot.Player.Inventory.Remove(v);
-					}
-					return true;
-				}
-			}
-			return true;
-		}
-
-		private bool HandlePlayerEquip(GameInstServer.Slot slot, uint equip, uint id)
-		{
-			Console.WriteLine("equip:" + equip + " id=" + id);
-
-			List<ServerPlayer.ItemInstance> inventory = slot.Player.Inventory;
-			List<ServerPlayer.ItemInstance> equipped = slot.ServerCharacter.Equipped;
-
-			if (equip == 1)
-			{
-				foreach (var inst in inventory)
-				{
-					if (inst.Id == id)
-					{
-						if (!equipped.Contains(inst))
-						{
-							equipped.Add(inst);
-							slot.ServerCharacter.SendNewEquip = true;
-							Console.WriteLine("Did equip");
-							return false;
-						}
-					}
-				}
-			}
-			else
-			{
-				foreach (var inst in equipped)
-				{
-					if (inst.Id == id)
-					{
-						equipped.Remove(inst);
-						slot.ServerCharacter.SendNewEquip = true;
-						Console.WriteLine("Did unequip");
-						return false;
-					}
-				}
-			}
-			return false;
-		}
-
 		// Characters in view.
 		private void UpdateUnreliableAll(uint iteration)
 		{

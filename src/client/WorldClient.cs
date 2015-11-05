@@ -25,7 +25,8 @@ namespace UnityMMO
 			public uint Id; // instance id
 			public uint ItemId; // type id
 			public uint Count;
-			public uint InventorySlot;
+			public uint Slot;
+			public uint Parent;
 		};
 
 		public class Player
@@ -150,7 +151,8 @@ namespace UnityMMO
 						item.Id = Bitstream.ReadCompressedUint(b);
 						item.ItemId = Bitstream.ReadCompressedUint(b);
 						item.Count = Bitstream.ReadCompressedUint(b);
-						item.InventorySlot = Bitstream.ReadCompressedUint(b);
+						item.Slot = Bitstream.ReadCompressedUint(b);
+						item.Parent = Bitstream.ReadCompressedUint(b);
 						p.Inventory.Add(item);
 					}
 				}
@@ -354,6 +356,16 @@ namespace UnityMMO
 			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_EQUIP);
 			Bitstream.PutBits(cmd, 1, 0);
 			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void MoveItem(uint itemInstanceId, uint newSlot)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_MOVE);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			Bitstream.PutCompressedUint(cmd, newSlot);
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
 		}
