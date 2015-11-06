@@ -56,6 +56,8 @@ namespace UnityMMO
 			public Vector3[] track;
 			public int next;
 			public float time;
+			// just for user.
+			public bool is_subpath;
 		};
 
 		class Data
@@ -231,9 +233,12 @@ namespace UnityMMO
 			return Vector3.Dot(toTargetNorm, ServerCharacter.HeadingVector(character.Heading));
 		}
 
-		private bool FollowPath(ServerCharacter character, Data d, float dt, Path p)
+		private bool FollowPath(ServerCharacter character, Data d, float dt, Path p, out NavHelper.HitInfo hi)
 		{
 			Vector3 pathTarget = CurrentGoal(p);
+
+			hi.hit = null;
+			hi.t = 0;
 
 			while (dt > 0.0f && _Dist2D(character.Position, pathTarget) < 0.25f * m_MoveSpeed)
 			{
@@ -242,13 +247,14 @@ namespace UnityMMO
 				else
 					break;
 			}
-
+				
 			Vector3 toTarget = pathTarget - character.Position;
 
 			// oblivious to y
 			toTarget.y = 0;
 
 			float toTargetDsq = Vector3.Dot(toTarget, toTarget);
+			bool ok = true;
 
 			if (toTargetDsq > 0.00001f)
 			{
@@ -260,7 +266,7 @@ namespace UnityMMO
 				{
 					headingAmt = 0;
 				}
-				
+
 				float move = headingAmt * dt * m_MoveSpeed;
 				if (move > toTargetD)
 				{
@@ -269,7 +275,6 @@ namespace UnityMMO
 
 				Vector3 next = character.Position + move * toTargetNorm;
 
-				NavHelper.HitInfo hi;
 				if (!NavHelper.TestCharacterMove(character, next, character.World._activeCharacters, out hi))
 				{
 					character.Position = next;
@@ -277,6 +282,8 @@ namespace UnityMMO
 				else
 				{
 					character.Position = character.Position + hi.t * move * toTargetNorm;
+					if (hi.t < 0.001f)
+						ok = false;
 				}
 
 				SnapToNavMesh(character, d);
@@ -287,7 +294,7 @@ namespace UnityMMO
 				return false;
 			}
 
-			return true;
+			return ok;
 		}
 
 		private void SnapToNavMesh(ServerCharacter character, Data d)
@@ -350,6 +357,11 @@ namespace UnityMMO
 
 		private void DoAttack(uint iteration, ServerCharacter me, Data d, ServerCharacter target)
 		{
+			return;
+
+			if (m_Attacks.Length == 0)
+				return;
+
 			int which = m_random.Next(0, m_Attacks.Length);
 			if (d.AttackCooldown[which] <= 0)
 			{
@@ -470,7 +482,8 @@ namespace UnityMMO
 
 							if (d.CurrentPath != null)
 							{
-								if (!FollowPath(character, d, dt, d.CurrentPath))
+								NavHelper.HitInfo hi;
+								if (!FollowPath(character, d, dt, d.CurrentPath, out hi))
 								{
 									Console.WriteLine("Patrol done");
 									d.CurrentPath = null;
@@ -504,10 +517,36 @@ namespace UnityMMO
 								break;
 							}
 
-							if (!FollowPath(character, d, dt, d.CurrentPath))
+							NavHelper.HitInfo hi;
+							if (!FollowPath(character, d, dt, d.CurrentPath, out hi))
 							{
-								Console.WriteLine("Path following done, I go idle.");
-								d.CurState = Data.State.IDLE;
+								if (hi.hit != null && !d.CurrentPath.is_subpath)
+								{
+									// not finished because hit something.
+									Vector3 norm = (hi.hit as ServerCharacter).Position - character.Position;
+									Vector3 avoid = new Vector3(norm.z, 0, -norm.x);
+
+									float dn = (float)Math.Sqrt(Vector3.Dot(norm, norm));
+									float dist = (float)Math.Sqrt(Vector3.Dot(avoid, avoid));
+
+									d.CurrentPath = PlanPathTo(character, character.Position + (dist / dn) * avoid + (-0.01f * norm));
+									if (d.CurrentPath != null)
+									{
+										d.CurrentPath.is_subpath = true;
+										Console.WriteLine("Replanned around obstacle with " + d.CurrentPath.track + " nodes");
+									}
+									else
+									{
+										Console.WriteLine("Not sure how to get around this..!");
+										d.CurState = Data.State.IDLE;
+									}
+								}
+								else
+								{
+									d.CurrentPath = PlanPathTo(character, d.Target.Position);
+									Console.WriteLine("Chase path done, replanning new path");
+									d.CurState = Data.State.IDLE;
+								}
 								break;
 							}
 	
