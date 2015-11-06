@@ -85,7 +85,7 @@ namespace UnityMMO
 		public Vector3 StartPosition;
 		public Vector3 DefaultSpawnPos;
 		public float Radius = 0.5f;
-		public uint HP;
+		public uint HP = 100;
 	}
 
 	public class ServerCharacter : Entity
@@ -96,6 +96,7 @@ namespace UnityMMO
 		public WorldServer World;
 
 		public bool Spawned = false;
+		public bool Dead = false;
 
 		public Vector3 Position;
 		public Vector3 Velocity;
@@ -110,6 +111,9 @@ namespace UnityMMO
 		public float TimeOffset = 0;
 
 		public bool GotNew = false;
+
+		// outgoing events
+		public List<Bitstream.Buffer> Events = new List<Bitstream.Buffer>();
 
 		public static Vector3 HeadingVector(float heading)
 		{
@@ -134,6 +138,7 @@ namespace UnityMMO
 		public void ResetFromData(ServerCharacterData data)
 		{
 			Spawned = false;
+			Dead = false;
 			HP = MaxHP = data.HP;
 		}
 
@@ -151,12 +156,47 @@ namespace UnityMMO
 			GotNew = from.GotNew;
 		}
 
+		public bool Alive()
+		{
+			return !Dead && Spawned;
+		}
+
+		public void TakeDamage(int amt)
+		{
+			if (amt > 0)
+			{
+				if (amt >= HP)
+				{
+					HP = 0;
+					OnDeath();
+				}
+				else
+				{
+					HP = (uint)(HP - amt);
+				}
+				GotNew = true;
+			}
+		}
+
+		private void OnDeath()
+		{
+			AddAnimEvent("Character " + m_Id + " died!");
+			Dead = true;
+			GotNew = true;
+		}
+
+		public void AddAnimEvent(string anim)
+		{
+			Bitstream.Buffer b = Bitstream.Buffer.Make(new byte[128]);
+			Bitstream.PutCompressedUint(b, 0); // anim
+			Bitstream.PutStringDumb(b, anim);
+			b.Flip();
+			Events.Add(b);
+		}
+
 		public override void Update(uint iteration, float dt)
 		{
-			if (!Spawned)
-			{
-				return;
-			}
+
 		}
 
 		private void WriteEquips(Bitstream.Buffer stream)
@@ -167,7 +207,7 @@ namespace UnityMMO
 				Bitstream.PutCompressedUint(stream, v.Id);
 				Bitstream.PutCompressedUint(stream, v.Item.Id);
 			}
-			Bitstream.PutBits(stream, 1, 0);	
+			Bitstream.PutBits(stream, 1, 0);
 		}
 
 		public override void WriteFullState(Bitstream.Buffer stream)
@@ -178,21 +218,46 @@ namespace UnityMMO
 			Bitstream.PutFloat(stream, Position.y);
 			Bitstream.PutFloat(stream, Position.z);
 			Bitstream.PutFloat(stream, Heading);
+			Bitstream.PutCompressedUint(stream, HP);
+			Bitstream.PutBits(stream, 1, (uint)(Dead ? 1 : 0));
 			WriteEquips(stream);
 			Bitstream.PutCompressedInt(stream, (int)TimeOffset);
 		}
 
 		public override bool WriteReliableUpdate(Bitstream.Buffer stream)
 		{
+			if (!SendNewEquip && Events.Count == 0)
+				return false;
+			
 			if (SendNewEquip)
 			{
+				SendNewEquip = false;
 				Bitstream.PutBits(stream, 1, 1);
 				WriteEquips(stream);
-				Bitstream.PutBits(stream, 1, 0);
-				SendNewEquip = false;
-				return true;
 			}
-			return false;
+			else
+			{
+				Bitstream.PutBits(stream, 1, 0);
+			}
+
+			if (Events.Count > 0)
+			{
+				Bitstream.PutBits(stream, 1, 1);
+				Bitstream.PutCompressedUint(stream, (uint)Events.Count);
+				for (int i = 0; i < Events.Count; i++)
+				{
+					Bitstream.Insert(stream, Events[i]);
+				}
+				Events.Clear();
+			}
+			else
+			{
+				Bitstream.PutBits(stream, 1, 0);
+			}
+					
+			// no character
+			Bitstream.PutBits(stream, 1, 0);
+			return true;
 		}
 
 		public override bool WriteUnreliableUpdate(Bitstream.Buffer stream)
@@ -200,6 +265,7 @@ namespace UnityMMO
 			if (GotNew)
 			{
 				Bitstream.PutBits(stream, 1, 0); // no equip
+				Bitstream.PutBits(stream, 1, 0); // no events
 				Bitstream.PutBits(stream, 1, 1); // char data
 				Bitstream.PutFloat(stream, Position.x);
 				Bitstream.PutFloat(stream, Position.y);
@@ -209,6 +275,8 @@ namespace UnityMMO
 				Bitstream.PutFloat(stream, Velocity.y);
 				Bitstream.PutFloat(stream, Velocity.z);
 				Bitstream.PutCompressedInt(stream, (int)TimeOffset);
+				Bitstream.PutCompressedUint(stream, HP);
+				Bitstream.PutBits(stream, 1, (uint)(Dead ? 1 : 0));
 				GotNew = false;
 				return true;
 			}

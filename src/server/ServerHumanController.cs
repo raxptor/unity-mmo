@@ -20,6 +20,8 @@ namespace UnityMMO
 
 		private void ExecEventBlock(uint iteration, Bitstream.Buffer buf, ServerCharacter character)
 		{
+			bool Alive = character.Spawned && !character.Dead;
+
 			while (true)
 			{
 				uint evt = Bitstream.ReadBits(buf, EventBlock.TYPE_BITS);
@@ -35,13 +37,17 @@ namespace UnityMMO
 							NetUtil.ReadScaledVec3(buf, SCALING_MOVE, out pos);
 							NetUtil.ReadScaledVec3(buf, SCALING_VELOCITY, out vel);
 							byte heading = (byte) Bitstream.ReadBits(buf, 8);
-							if (buf.error == 0)
+
+							if (Alive)
 							{
-								character.TimeOffset = (int)local_time - (int)iteration;
-								character.Position = pos;
-								character.Velocity = vel;
-								character.Heading = heading * 3.1415f / 128.0f;
-								character.GotNew = true;
+								if (buf.error == 0)
+								{
+									character.TimeOffset = (int)local_time - (int)iteration;
+									character.Position = pos;
+									character.Velocity = vel;
+									character.Heading = heading * 3.1415f / 128.0f;
+									character.GotNew = true;
+								}
 							}
 							break;
 						}
@@ -52,11 +58,14 @@ namespace UnityMMO
 					case EventBlock.Type.INTERACT:
 						{
 							uint entityId = Bitstream.ReadCompressedUint(buf);
-							foreach (Entity e in character.World._activeEntities)
+							if (Alive)
 							{
-								if (e.m_Id == entityId)
+								foreach (Entity e in character.World._activeEntities)
 								{
-									e.OnInteract(iteration, character);
+									if (e.m_Id == entityId)
+									{
+										e.OnInteract(iteration, character);
+									}
 								}
 							}
 							break;

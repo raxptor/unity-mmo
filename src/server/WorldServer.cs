@@ -97,6 +97,7 @@ namespace UnityMMO
 			lock (this)
 			{
 				ch.World = this;
+				ch.m_Id = (uint)_activeCharacters.Count;
 				_activeCharacters.Add(ch);
 			}
 		}
@@ -128,7 +129,7 @@ namespace UnityMMO
 			WorldObserver ws = new WorldObserver();
 			ws.TrackCharacter = tracking;
 			ws.CharacterFilter = new bool[_activeCharacters.Count];
-			ws.FilterRange = 50.0f;
+			ws.FilterRange = 500.0f;
 
 			lock (this)
 			{
@@ -299,7 +300,7 @@ namespace UnityMMO
 			{
 				if (next == null)
 				{
-					next = Bitstream.Buffer.Make(new byte[64]);
+					next = Bitstream.Buffer.Make(new byte[128]);
 				}
 				if (_activeCharacters[i].WriteUnreliableUpdate(next))
 				{
@@ -319,7 +320,7 @@ namespace UnityMMO
 					{
 						if (output == null)
 						{
-							output = Bitstream.Buffer.Make(new byte[512]);
+							output = Bitstream.Buffer.Make(new byte[4096]);
 							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
 							Bitstream.PutCompressedUint(output, iteration);
 						}

@@ -10,13 +10,22 @@ namespace UnityMMO
 		// params
 		public string m_Character;
 		public float m_HP;
-		public float m_Attack;
 		public float m_PatrolRadius;
 		public float m_SearchRadius;
 		public float m_MoveSpeed;
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
 		public float m_EngageDistance = 1.5f;
+
+		public struct AttackDef
+		{
+			public string AnimTrigger;
+			public float Duration;
+			public float Cooldown;
+			public uint AttackMin, AttackMax;
+		};
+
+		public AttackDef[] m_Attacks;
 
 		//
 		Random m_random = new Random();
@@ -25,12 +34,21 @@ namespace UnityMMO
 		{
 			m_Character = Bitstream.ReadStringDumb(b);
 			m_HP = Bitstream.ReadFloat(b);
-			m_Attack = Bitstream.ReadFloat(b);
 			m_PatrolRadius = Bitstream.ReadFloat(b);
 			m_SearchRadius = Bitstream.ReadFloat(b);
 			m_MoveSpeed = Bitstream.ReadFloat(b);
 			m_MinSpawnTime = Bitstream.ReadFloat(b);
 			m_MaxSpawnTime = Bitstream.ReadFloat(b);
+
+			m_Attacks = new AttackDef[Bitstream.ReadCompressedUint(b)];
+			for (int i = 0; i < m_Attacks.Length; i++)
+			{
+				m_Attacks[i].AnimTrigger = Bitstream.ReadStringDumb(b);
+				m_Attacks[i].Duration = Bitstream.ReadFloat(b);
+				m_Attacks[i].Cooldown = Bitstream.ReadFloat(b);
+				m_Attacks[i].AttackMin = Bitstream.ReadCompressedUint(b);
+				m_Attacks[i].AttackMax = Bitstream.ReadCompressedUint(b);
+			}
 		}
 
 		class Path
@@ -63,6 +81,12 @@ namespace UnityMMO
 			public Path CurrentPath;
 			public bool TargetPathIsComplete;
 			public Vector3 TargetPathTarget;
+
+			public float[] AttackCooldown;
+			public float AttackTimer;
+
+			public float SpawnTimer;
+			public float CorpseTimer;
 	
 			public State CurState;
 		};
@@ -120,7 +144,7 @@ namespace UnityMMO
 			foreach (ServerCharacter ch in w._activeCharacters)
 			{
 				float closest = 0;
-				if (ch.Data.HumanControllable && ch.Spawned)
+				if (ch.Data.HumanControllable && ch.Alive())
 				{
 					int idx;
 					float ground_y;
@@ -324,17 +348,47 @@ namespace UnityMMO
 			return null;
 		}
 
+		private void DoAttack(uint iteration, ServerCharacter me, Data d, ServerCharacter target)
+		{
+			int which = m_random.Next(0, m_Attacks.Length);
+			if (d.AttackCooldown[which] <= 0)
+			{
+				d.AttackCooldown[which] = m_Attacks[which].Cooldown;
+				d.AttackTimer = m_Attacks[which].Duration;
+
+				int dmg = m_random.Next((int)m_Attacks[which].AttackMin, (int)m_Attacks[which].AttackMax + 1);
+				target.TakeDamage(dmg);
+				me.AddAnimEvent(m_Attacks[which].AnimTrigger);
+
+				me.TakeDamage(2 * dmg);
+			}
+		}
+
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
 			if (!character.Spawned)
 			{
-				Debug.Log("Spawn: AI at " + character.Data.DefaultSpawnPos.x + ":" + character.Data.DefaultSpawnPos.z);
+				Data ccd = character.ControllerData as Data;
+				if (ccd != null)
+				{
+					if (ccd.SpawnTimer > 0.0f)
+					{
+						float cdt = 0.001f * (iteration - ccd.LastControllerUpdate);
+						ccd.LastControllerUpdate = iteration;
+						ccd.SpawnTimer -= cdt;
+						return;
+					}
+				}
+
+				Debug.Log("Spawn: AI (" + m_Character + ") " + character.Data.DefaultSpawnPos.x + ":" + character.Data.DefaultSpawnPos.z);
+				character.ResetFromData(character.Data);
 				character.Position = character.Data.DefaultSpawnPos;
 				character.Velocity.x = 0;
 				character.Velocity.y = 0;
 				character.Velocity.z = 0;
 				character.CharacterTypeId = m_Character;
 				character.Spawned = true;
+				character.Dead = false;
 				character.TimeOffset = 0;
 				character.GotNew = true;
 
@@ -342,6 +396,9 @@ namespace UnityMMO
 				nd.GroundedOnPoly = -1;
 				nd.LastControllerUpdate = iteration;
 				nd.CurState = Data.State.IDLE;
+				nd.AttackCooldown = new float[m_Attacks.Length];
+				nd.SpawnTimer = m_MinSpawnTime + (float)m_random.NextDouble() * (m_MaxSpawnTime - m_MinSpawnTime);
+				nd.CorpseTimer = 10.0f;
 				character.ControllerData = nd;
 			}
 
@@ -349,18 +406,32 @@ namespace UnityMMO
 				return;
 
 			Data d = character.ControllerData as Data;
+			float dt = 0.001f * (iteration - d.LastControllerUpdate);
+			d.LastControllerUpdate = iteration;
+
+			if (character.Dead)
+			{
+				d.SpawnTimer -= dt;
+				d.CorpseTimer -= dt;
+				if (d.CorpseTimer < 0)
+				{
+					character.Spawned = false;
+					character.GotNew = true;
+				}
+				return;
+			}
 
 			// -------------
 			// Normal update
-
-			float dt = 0.001f * (iteration - d.LastControllerUpdate);
-			d.LastControllerUpdate = iteration;
 
 			if (d.GroundedOnPoly == -1)
 			{
 				Fall(character, d, dt);
 				character.GotNew = true;
 			}
+
+			for (int i = 0; i < m_Attacks.Length; i++)
+				d.AttackCooldown[i] -= dt;
 
 			if (d.GroundedOnPoly != -1)
 			{
@@ -426,7 +497,7 @@ namespace UnityMMO
 
 					case Data.State.CHASE:
 						{
-							if (d.CurrentPath == null || d.Target == null || !d.Target.Spawned)
+							if (d.CurrentPath == null || d.Target == null || !d.Target.Alive())
 							{
 								Console.WriteLine("Target unspawned, lost target or it unspawned. Idling.");
 								d.CurState = Data.State.IDLE;
@@ -466,7 +537,7 @@ namespace UnityMMO
 							}
 						}
 
-						if (_Dist(d.Target.Position, character.Position) < m_EngageDistance)
+						if (_Dist2D(d.Target.Position, character.Position) < m_EngageDistance)
 						{
 							Console.WriteLine("Engaging in attack!");
 							d.CurState = Data.State.ATTACK;
@@ -475,13 +546,13 @@ namespace UnityMMO
 
 					case Data.State.ATTACK:
 						{
-							if (!d.Target.Spawned)
+							if (!d.Target.Alive())
 							{
 								Console.WriteLine("Target died, going idle");
 								d.CurState = Data.State.IDLE;
 								break;
 							}
-
+				
 							float angle = 1.0f;
 							Vector3 diff = d.Target.Position - character.Position;
 							diff.y = 0.0f;
@@ -500,16 +571,24 @@ namespace UnityMMO
 								break;
 							}
 
+							if (d.AttackTimer > 0)
+							{
+								d.AttackTimer -= dt;
+								if (d.AttackTimer < 0)
+									d.AttackTimer = 0;
+							}
+
 							if (angle > 0.20f)
 							{
-//								Console.WriteLine("I can hit, angle=" + angle);
+								if (d.AttackTimer == 0)
+								{
+									DoAttack(iteration, character, d, d.Target);
+								}
 							}
 							else
 							{
 								Console.WriteLine("Attack state:" + diffD + " angle=" + angle);
 							}
-
-
 							break;
 						}
 				}

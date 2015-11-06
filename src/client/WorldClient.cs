@@ -85,6 +85,7 @@ namespace UnityMMO
 			{
 				uint character = Bitstream.ReadBits(b, 15);
 				uint enabled = Bitstream.ReadBits(b, 1);
+				Debug.Log("char=" + character + " enabled=" + enabled); 
 
 				if (b.error != 0 || character >= _characters.Count)
 					break;
