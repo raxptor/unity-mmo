@@ -38,6 +38,8 @@ namespace UnityMMO
 		public uint _timeScale = 1;
 		private uint _itemInstanceIDs = 1234;
 
+		public bool _characterMirroringHax = false;
+
 		public WorldServer(ILevelQuery query, outki.GameConfiguration config)
 		{
 			_activeCharacters = new List<ServerCharacter>();
@@ -213,6 +215,14 @@ namespace UnityMMO
 					if (obs.TrackCharacter != null)
 						obs.FilterPosition = obs.TrackCharacter.Position;
 					UpdateCharacterFilter(iteration, obs);
+				}
+
+				if (_characterMirroringHax)
+				{
+					_activeCharacters[1].MirrorIt(_activeCharacters[0], new Vector3(0,0,-4));
+					_activeCharacters[2].MirrorIt(_activeCharacters[0], new Vector3(0,0,4));
+					_activeCharacters[3].MirrorIt(_activeCharacters[0], new Vector3(4,0,0));
+					_activeCharacters[4].MirrorIt(_activeCharacters[0], new Vector3(-4,0,0));
 				}
 
 				UpdateUnreliableAll(iteration);

@@ -26,7 +26,8 @@ namespace UnityMMO
 			public uint ItemId; // type id
 			public uint Count;
 			public uint Slot;
-			public uint Parent;
+			public uint ChildCount;
+			public List<ItemInstance> Children;
 		};
 
 		public class Player
@@ -127,6 +128,29 @@ namespace UnityMMO
 			}
 		}
 
+		private static ItemInstance ReadInventoryItem(Bitstream.Buffer b)
+		{
+			ItemInstance item = new ItemInstance();
+			item.Id = Bitstream.ReadCompressedUint(b);
+			item.ItemId = Bitstream.ReadCompressedUint(b);
+			item.Count = Bitstream.ReadCompressedUint(b);
+			item.Slot = Bitstream.ReadCompressedUint(b);
+			item.ChildCount = Bitstream.ReadCompressedUint(b);
+			if (item.ChildCount > 0)
+			{
+				uint included = Bitstream.ReadBits(b, 1);
+				if (included != 0)
+				{
+					item.Children = new List<ItemInstance>();
+					for (uint i=0;i!=item.ChildCount;i++)
+					{
+						item.Children.Add(ReadInventoryItem(b));
+					}
+				}
+			}
+			return item;
+		}
+
 		private void OnUpdatePlayersBlock(Bitstream.Buffer b)
 		{
 			Debug.Log("Players update block");
@@ -145,16 +169,9 @@ namespace UnityMMO
 					p.Inventory = new List<ItemInstance>();
 					uint invcount = Bitstream.ReadCompressedUint(b);
 					Debug.Log(p.Name + " has inventory items " + invcount);
-
 					for (uint j = 0; j < invcount; j++)
 					{
-						ItemInstance item = new ItemInstance();
-						item.Id = Bitstream.ReadCompressedUint(b);
-						item.ItemId = Bitstream.ReadCompressedUint(b);
-						item.Count = Bitstream.ReadCompressedUint(b);
-						item.Slot = Bitstream.ReadCompressedUint(b);
-						item.Parent = Bitstream.ReadCompressedUint(b);
-						p.Inventory.Add(item);
+						p.Inventory.Add(ReadInventoryItem(b));
 					}
 				}
 				_players.Add(p);

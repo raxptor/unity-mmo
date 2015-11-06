@@ -143,11 +143,11 @@ namespace UnityMMO
 		}
 
 		// For testing only.
-		public void MirrorIt(ServerCharacter from)
+		public void MirrorIt(ServerCharacter from, Vector3 ofs)
 		{
+			Equipped = from.Equipped;
 			Data = from.Data;
-			Position = from.Position;
-			Position.z = Position.z + 4;
+			Position = from.Position + ofs;
 			Velocity = from.Velocity;
 			Heading = from.Heading;
 			Spawned = from.Spawned;
