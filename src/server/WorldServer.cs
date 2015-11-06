@@ -129,7 +129,7 @@ namespace UnityMMO
 			WorldObserver ws = new WorldObserver();
 			ws.TrackCharacter = tracking;
 			ws.CharacterFilter = new bool[_activeCharacters.Count];
-			ws.FilterRange = 500.0f;
+			ws.FilterRange = 100.0f;
 
 			lock (this)
 			{
