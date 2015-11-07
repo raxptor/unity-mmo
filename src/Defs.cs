@@ -38,6 +38,7 @@ namespace UnityMMO
 			ITEM_USE,
 			ITEM_MOVE,
 			CRAFT,
+			HIT
 		}
 	}
 		

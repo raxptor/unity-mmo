@@ -64,12 +64,16 @@ namespace UnityMMO
 			uint slot = 0;
 			foreach (outki.Item item in m_itemData.Values)
 			{
-				int count = r.Next(0, (int)(item.StackSize + 1));
+				int count = 1;//r.Next(0, (int)(item.StackSize + 1));
+				if (item.Ammo != null)
+					count = 25;
+				
 				if (count > 0)
 				{
 					p.Inventory.Add(MakeItem(item, (uint)count, slot++));
 				}
 			}
+
 			Console.WriteLine("Gave out " + p.Inventory.Count + " items");
 			return p;
 		}

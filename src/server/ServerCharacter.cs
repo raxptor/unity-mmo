@@ -140,6 +140,7 @@ namespace UnityMMO
 			Spawned = false;
 			Dead = false;
 			HP = MaxHP = data.HP;
+			Equipped.Clear();
 		}
 
 		// For testing only.
@@ -192,6 +193,107 @@ namespace UnityMMO
 			Bitstream.PutStringDumb(b, anim);
 			b.Flip();
 			Events.Add(b);
+		}
+
+		public uint AmmoInWeapon(ServerPlayer.ItemInstance item)
+		{
+			if (item.Item.Weapon == null)
+				return 0;
+			if (item.Children == null)
+				return 0;
+
+			uint sum = 0;
+			foreach (var se in item.Children)
+			{
+				if (se.Item.Ammo != null && se.Item.Ammo.AmmoType == item.Item.Weapon.AmmoType)
+					sum += se.Count;
+			}
+
+			return sum;
+		}
+
+		public bool UseAmmoInWeapon(ServerPlayer.ItemInstance item)
+		{
+			if (item.Item.Weapon == null)
+				return false;
+			if (item.Children == null)
+				return false;
+
+			uint sum = 0;
+			foreach (var se in item.Children)
+			{
+				if (se.Item.Ammo != null && se.Item.Ammo.AmmoType == item.Item.Weapon.AmmoType)
+				{
+					se.Count--;
+					if (se.Count == 0)
+					{
+						item.Children.Remove(se);
+						return true;
+					}
+					return true;
+				}
+			}
+			return false;
+		}
+
+		public void Reload(uint itemId)
+		{
+			int toFill = 0;
+			outki.AmmoType type = outki.AmmoType.AMMO_TYPE_0;
+			ServerPlayer.ItemInstance target = null;
+
+			foreach (var entry in Player.Inventory)
+			{
+				if (entry.Id == itemId)
+				{
+					if (entry.Item.Weapon == null)
+						return;
+
+					target = entry;
+					type = entry.Item.Weapon.AmmoType;
+					toFill = (int)entry.Item.Weapon.Capacity - (int)AmmoInWeapon(entry);
+					Console.WriteLine("I can fill " + toFill + " ammo: " + type);
+					break;
+				}
+			}
+
+			if (target == null || toFill == 0)
+				return;
+
+			outki.Item _fillWith = null;
+			int got = 0;
+
+			for (int i = 0; i < Player.Inventory.Count && toFill > 0; i++)
+			{
+				ServerPlayer.ItemInstance ii = Player.Inventory[i];
+				if (ii.Item.Ammo != null && ii.Item.Ammo.AmmoType == type)
+				{
+					_fillWith = ii.Item;
+					if (ii.Count > toFill)
+					{
+						got = toFill;
+						ii.Count -= (uint)toFill;
+						Player.InventoryChanged = true;
+						break;
+					}
+					else
+					{
+						got = (int)ii.Count;
+						toFill -= (int)ii.Count;
+						Player.Inventory.RemoveAt(i);
+						i--;
+					}
+				}
+			}
+
+			if (_fillWith != null)
+			{
+				ServerPlayer.ItemInstance itm = World.MakeItem(_fillWith, (uint)got, 0);
+				if (target.Children == null)
+					target.Children = new List<ServerPlayer.ItemInstance>();
+				target.Children.Add(itm);
+				Player.InventoryChanged = true;
+			}
 		}
 
 		public override void Update(uint iteration, float dt)

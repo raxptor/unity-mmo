@@ -20,7 +20,7 @@ namespace UnityMMO
 			void OnUpdateBlock(uint iteration, Bitstream.Buffer block);
 		}
 
-		public struct ItemInstance
+		public class ItemInstance
 		{
 			public uint Id; // instance id
 			public uint ItemId; // type id
@@ -126,6 +126,19 @@ namespace UnityMMO
 				_startIteration += (uint)diff;
 				Debug.Log("Adjusting local time by " + diff + " ticks ahead");
 			}
+		}
+
+		public ItemInstance GetItemInstance(uint id)
+		{
+			if (_self == null)
+				return null;
+			
+			foreach (var ii in _self.Inventory)
+			{
+				if (ii.Id == id)
+					return ii;
+			}
+			return null;
 		}
 
 		private static ItemInstance ReadInventoryItem(Bitstream.Buffer b)
@@ -358,6 +371,26 @@ namespace UnityMMO
 		public Player GetPlayerSelf()
 		{
 			return _self;
+		}
+
+		public void Reload()
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.RELOAD);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void Fire(uint itemInstanceId, uint characterId, string hitTarget, Vector3 localModelHit)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.FIRE);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			Bitstream.PutStringDumb(cmd, hitTarget);
+			Bitstream.PutCompressedUint(cmd, characterId);
+			NetUtil.PutScaledVec3(cmd, 0.001f, localModelHit);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
 		}
 
 		public void Equip(uint itemInstanceId)

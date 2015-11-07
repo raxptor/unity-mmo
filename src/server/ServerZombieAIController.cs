@@ -286,6 +286,8 @@ namespace UnityMMO
 						ok = false;
 				}
 
+				character.Velocity = (1.0f / dt) * move * toTargetNorm;
+
 				SnapToNavMesh(character, d);
 			}
 
@@ -357,8 +359,6 @@ namespace UnityMMO
 
 		private void DoAttack(uint iteration, ServerCharacter me, Data d, ServerCharacter target)
 		{
-			return;
-
 			if (m_Attacks.Length == 0)
 				return;
 
@@ -372,12 +372,20 @@ namespace UnityMMO
 				target.TakeDamage(dmg);
 				me.AddAnimEvent(m_Attacks[which].AnimTrigger);
 
-				me.TakeDamage(2 * dmg);
+				Bitstream.Buffer hitBuf = Bitstream.Buffer.Make(new byte[256]);
+				Bitstream.PutCompressedUint(hitBuf, 1); // type: hit
+				Bitstream.PutCompressedUint(hitBuf, target.m_Id);
+				NetUtil.PutScaledVec3(hitBuf, 0.001f, new Vector3(0, 1.8f, 0));
+				Bitstream.PutCompressedInt(hitBuf, dmg);
+				hitBuf.Flip();
+				target.Events.Add(hitBuf);
 			}
 		}
 
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
+			character.Velocity = new Vector3(0,0,0);
+
 			if (!character.Spawned)
 			{
 				Data ccd = character.ControllerData as Data;
@@ -485,7 +493,6 @@ namespace UnityMMO
 								NavHelper.HitInfo hi;
 								if (!FollowPath(character, d, dt, d.CurrentPath, out hi))
 								{
-									Console.WriteLine("Patrol done");
 									d.CurrentPath = null;
 									d.CurState = Data.State.IDLE;
 								}

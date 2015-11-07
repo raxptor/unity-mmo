@@ -51,8 +51,54 @@ namespace UnityMMO
 							}
 							break;
 						}
+					case EventBlock.Type.RELOAD:
+						{
+							foreach (var x in character.Equipped)
+							{
+								character.Reload(x.Id);	
+							}
+						}
+						break;
+
 					case EventBlock.Type.FIRE:
 						{
+							uint itemInstanceID = Bitstream.ReadCompressedUint(buf);
+							string hitTarget = Bitstream.ReadStringDumb(buf);
+							uint characterId = Bitstream.ReadCompressedUint(buf);
+							Vector3 localModelPos;
+							NetUtil.ReadScaledVec3(buf, 0.001f, out localModelPos);
+
+							if (Alive)
+							{
+								ServerPlayer.ItemInstance ii = character.Player.GetInventoryItem(itemInstanceID);
+								if (ii == null)
+									break;
+								if (ii.Item.Weapon == null)
+									break;
+								if (!character.UseAmmoInWeapon(ii))
+									break;
+
+								character.Player.InventoryChanged = true;
+								
+								if (hitTarget != "")
+								{
+									System.Console.WriteLine("Hit " + characterId + "!");
+									if (characterId < character.World._activeCharacters.Count)
+									{
+										int amt = 10;
+										ServerCharacter tgt = character.World._activeCharacters[(int)characterId];
+										tgt.TakeDamage(amt);
+
+										Bitstream.Buffer hitBuf = Bitstream.Buffer.Make(new byte[256]);
+										Bitstream.PutCompressedUint(hitBuf, 1); // type: hit
+										Bitstream.PutCompressedUint(hitBuf, character.m_Id);
+										NetUtil.PutScaledVec3(hitBuf, 0.001f, localModelPos);
+										Bitstream.PutCompressedInt(hitBuf, amt);
+										hitBuf.Flip();
+										tgt.Events.Add(hitBuf);
+									}
+								}
+							}
 							break;
 						}
 					case EventBlock.Type.INTERACT:

@@ -41,9 +41,19 @@ namespace UnityMMO
 						{
 							outki.WeaponInfo wi = new outki.WeaponInfo();
 							wi.Type = (outki.WeaponType) Bitstream.ReadCompressedInt(buf);
-							Bitstream.ReadCompressedUint(buf); // damage
-							Bitstream.ReadFloat(buf); // range
+							wi.Damage = Bitstream.ReadCompressedUint(buf); // damage
+							wi.Range = Bitstream.ReadFloat(buf); // range
+							wi.Capacity = Bitstream.ReadCompressedUint(buf);
+							wi.AmmoType = (outki.AmmoType)Bitstream.ReadCompressedUint(buf);
+							wi.StaminaCost = Bitstream.ReadFloat(buf);
 							item.Weapon = wi;
+							break;
+						}
+					case 3:
+						{
+							outki.AmmoInfo ai = new outki.AmmoInfo();
+							ai.AmmoType = (outki.AmmoType) Bitstream.ReadCompressedUint(buf);
+							item.Ammo = ai;
 							break;
 						}
 					default:
