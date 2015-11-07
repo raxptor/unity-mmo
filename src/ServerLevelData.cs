@@ -28,8 +28,8 @@ namespace UnityMMO
 				item.Id = Bitstream.ReadCompressedUint(buf);
 				item.DebugName = Bitstream.ReadStringDumb(buf);
 				item.Equip = (outki.EquipType) Bitstream.ReadCompressedUint(buf);
+				item.Use = (outki.UseType) Bitstream.ReadCompressedUint(buf);
 				item.StackSize = Bitstream.ReadCompressedUint(buf);
-
 				switch (type)
 				{
 					// generic
@@ -56,6 +56,13 @@ namespace UnityMMO
 							item.Ammo = ai;
 							break;
 						}
+					case 4:
+						{
+							outki.FoodInfo fi = new outki.FoodInfo();
+							fi.HP = Bitstream.ReadCompressedInt(buf);
+							item.Food = fi;
+							break;
+						}
 					default:
 						Debug.Log("Unknown item type " + type);
 						break;
@@ -63,6 +70,38 @@ namespace UnityMMO
 
 				Debug.Log("Adding item id:" + item.Id + " debugname:" + item.DebugName);
 				server.AddItemData(item);
+			}
+
+			while (true)
+			{
+				uint recipeId = Bitstream.ReadCompressedUint(buf);
+				if (recipeId == 0 || buf.error != 0)
+					break;
+
+				outki.Recipe r = new outki.Recipe();
+				r.Id = recipeId;
+				r.Name = Bitstream.ReadStringDumb(buf);
+					r.Station = (outki.CraftingStation)Bitstream.ReadCompressedUint(buf);
+
+				r.Inputs = new outki.Ingredient[Bitstream.ReadCompressedUint(buf)];
+				for (uint i = 0; i < r.Inputs.Length; i++)
+				{
+					outki.Ingredient ig = new outki.Ingredient();
+					ig.item = server.m_itemData[Bitstream.ReadCompressedUint(buf)];
+					ig.Count = Bitstream.ReadCompressedUint(buf);
+					r.Inputs[i] = ig;
+				}
+				r.Outputs = new outki.Ingredient[Bitstream.ReadCompressedUint(buf)];
+				for (uint i = 0; i < r.Outputs.Length; i++)
+				{
+					outki.Ingredient ig = new outki.Ingredient();
+					ig.item = server.m_itemData[Bitstream.ReadCompressedUint(buf)];
+					ig.Count = Bitstream.ReadCompressedUint(buf);
+					r.Outputs[i] = ig;
+				}
+
+				server.m_recipes[r.Id] = r;
+				Debug.Log("Added recipe " + r.Id + " = " + r.Name);
 			}
 
 			int characters = Bitstream.ReadCompressedInt(buf);

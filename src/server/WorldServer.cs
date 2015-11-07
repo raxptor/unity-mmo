@@ -31,7 +31,9 @@ namespace UnityMMO
 
 		public outki.GameConfiguration _config;
 		public List<Vector3> _humanSpawnPoints = new List<Vector3>();
+
 		public Dictionary<uint, outki.Item> m_itemData = new Dictionary<uint, outki.Item>();
+		public Dictionary<uint, outki.Recipe> m_recipes = new Dictionary<uint, outki.Recipe>();
 
 		DateTime _startTime = DateTime.Now;
 
@@ -39,6 +41,7 @@ namespace UnityMMO
 		private uint _itemInstanceIDs = 1234;
 
 		public bool _characterMirroringHax = false;
+		public bool _allItemsHax = false;
 
 		public struct LoadoutEntry
 		{
@@ -72,14 +75,25 @@ namespace UnityMMO
 		{
 			ServerPlayer p = new ServerPlayer(name, id);
 
-			foreach (var se in m_startingInventory)
+			if (_allItemsHax)
 			{
-				ServerPlayer.ItemInstance neue = MakeItem(m_itemData[se.ItemTypeId], se.Count, se.Slot);
-				neue.UserState = se.State;
-				neue.EquippedInSlot = se.EquipOnCharacter;
-				p.Inventory.Add(neue);
+				foreach (var item in m_itemData.Values)
+				{
+					ServerPlayer.ItemInstance neue = MakeItem(item, 1, 0);
+					p.Inventory.Add(neue);
+				}
 			}
-				
+			else
+			{
+				foreach (var se in m_startingInventory)
+				{
+					ServerPlayer.ItemInstance neue = MakeItem(m_itemData[se.ItemTypeId], se.Count, se.Slot);
+					neue.UserState = se.State;
+					neue.EquippedInSlot = se.EquipOnCharacter;
+					p.Inventory.Add(neue);
+				}
+			}
+
 			Console.WriteLine("Gave out " + p.Inventory.Count + " items");
 			return p;
 		}
