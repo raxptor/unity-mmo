@@ -30,6 +30,9 @@ namespace UnityMMO
 				item.Equip = (outki.EquipType) Bitstream.ReadCompressedUint(buf);
 				item.Use = (outki.UseType) Bitstream.ReadCompressedUint(buf);
 				item.StackSize = Bitstream.ReadCompressedUint(buf);
+				if (item.StackSize == 0)
+					item.StackSize = 1;
+				
 				switch (type)
 				{
 					// generic

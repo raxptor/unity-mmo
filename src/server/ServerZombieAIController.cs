@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using netki;
 
 namespace UnityMMO
@@ -143,6 +144,7 @@ namespace UnityMMO
 		{
 			ServerCharacter res = null;
 			WorldServer w = character.World;
+
 			foreach (ServerCharacter ch in w._activeCharacters)
 			{
 				float closest = 0;

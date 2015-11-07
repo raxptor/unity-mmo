@@ -10,8 +10,39 @@ namespace UnityMMO
 
 		private List<Bitstream.Buffer> _blocks = new List<Bitstream.Buffer>();
 
+		public class HumanData
+		{
+			public uint UnspawnTimer;
+			public uint LastIteration;
+		}
+
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
+			if (character.ControllerData == null)
+			{
+				HumanData hd = new HumanData();
+				hd.UnspawnTimer = 2000;
+				hd.LastIteration = iteration;
+				character.ControllerData = hd;
+			}
+
+			HumanData d = (HumanData)character.ControllerData;
+			uint delta = iteration - d.LastIteration;
+			d.LastIteration = iteration;
+
+			if (character.Spawned && character.Dead)
+			{
+				if (delta >= d.UnspawnTimer)
+				{
+					System.Console.WriteLine("Unspawning human character.");
+					character.Spawned = false;
+					character.ControllerData = null;
+					character.GotNew = true;
+					return;
+				}
+				d.UnspawnTimer -= delta;
+			}
+
 			foreach (Bitstream.Buffer buf in _blocks)
 			{
 				ExecEventBlock(iteration, buf, character);
@@ -135,6 +166,9 @@ namespace UnityMMO
 								Debug.Log("Spawn: Could not get spawn point");
 								break;
 							}
+
+							character.World.ResetPlayerToDefaults(character.Player);
+							character.World.ResetCharacter(character.Player, character);
 
 							character.Position = spawnPos;
 							character.CharacterTypeId = CharacterId;

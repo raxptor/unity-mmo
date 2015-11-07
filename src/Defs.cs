@@ -20,6 +20,15 @@ namespace UnityMMO
 		}
 	}
 
+	public static class AcquireReason
+	{
+		public enum Reason
+		{
+			SCAVENGE = 1,
+			CRAFTING = 2
+		}
+	}
+
 	// these should be sent reliably.
 	public static class EventBlock
 	{

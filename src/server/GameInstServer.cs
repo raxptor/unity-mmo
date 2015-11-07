@@ -160,6 +160,7 @@ namespace UnityMMO
 				}
 				else
 				{
+					_worldServer.ResetPlayerToDefaults(s.Player);
 					_worldServer.ResetCharacter(s.Player, s.ServerCharacter);
 				}
 

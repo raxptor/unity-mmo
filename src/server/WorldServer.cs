@@ -71,9 +71,10 @@ namespace UnityMMO
 			return inst;
 		}
 
-		public ServerPlayer MakeNewPlayer(string name, uint id)
+		public void ResetPlayerToDefaults(ServerPlayer p)
 		{
-			ServerPlayer p = new ServerPlayer(name, id);
+			p.Inventory.Clear();
+			p.InventoryChanged = true;
 
 			if (_allItemsHax)
 			{
@@ -94,7 +95,11 @@ namespace UnityMMO
 				}
 			}
 
-			Console.WriteLine("Gave out " + p.Inventory.Count + " items");
+		}
+
+		public ServerPlayer MakeNewPlayer(string name, uint id)
+		{
+			ServerPlayer p = new ServerPlayer(name, id);
 			return p;
 		}
 
@@ -174,6 +179,8 @@ namespace UnityMMO
 				if (pi.EquippedInSlot != 0)
 					ServerPlayerCommands.HandlePlayerEquip(p, c, 1, pi.Id);
 			}
+			p.InventoryChanged = true;
+			c.GotNew = true;
 			c.SendNewEquip = true;
 		}
 

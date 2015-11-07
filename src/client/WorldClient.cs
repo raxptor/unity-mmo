@@ -88,6 +88,21 @@ namespace UnityMMO
 			_characters.Add(index, character);
 		}
 
+		public List<int> GetCharacterIds()
+		{
+			List<int> list = new List<int>();
+			foreach (int k in _characters.Keys)
+				list.Add(k);
+			return list;
+		}
+
+		public Character GetCharacter(int id)
+		{
+			Character tmp;
+			_characters.TryGetValue(id, out tmp);
+			return tmp;
+		}
+
 		public void AddEntity(uint id, Entity entity)
 		{
 			_entities.Add(id, entity);
@@ -412,6 +427,15 @@ namespace UnityMMO
 			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_EQUIP);
 			Bitstream.PutBits(cmd, 1, 1);
 			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void Craft(uint recipeId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.CRAFT);
+			Bitstream.PutCompressedUint(cmd, recipeId);
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
 		}
