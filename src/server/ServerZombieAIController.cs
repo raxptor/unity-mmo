@@ -266,6 +266,10 @@ namespace UnityMMO
 				{
 					headingAmt = 0;
 				}
+				else
+				{
+					headingAmt = 0.5f + 0.5f * headingAmt;
+				}
 
 				float move = headingAmt * dt * m_MoveSpeed;
 				if (move > toTargetD)

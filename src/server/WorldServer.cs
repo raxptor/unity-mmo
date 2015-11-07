@@ -40,6 +40,18 @@ namespace UnityMMO
 
 		public bool _characterMirroringHax = false;
 
+		public struct LoadoutEntry
+		{
+			public uint ItemTypeId;
+			public uint Count;
+			public uint Slot;
+			public uint State;
+			public uint EquipOnCharacter;
+		}
+
+		public LoadoutEntry[] m_startingInventory;
+
+
 		public WorldServer(ILevelQuery query, outki.GameConfiguration config)
 		{
 			_activeCharacters = new List<ServerCharacter>();
@@ -52,6 +64,7 @@ namespace UnityMMO
 			inst.Item = item;
 			inst.Id = ++_itemInstanceIDs;
 			inst.Count = count;
+			inst.Slot = slot;
 			return inst;
 		}
 
@@ -59,21 +72,14 @@ namespace UnityMMO
 		{
 			ServerPlayer p = new ServerPlayer(name, id);
 
-			// give out random stuff
-			Random r = new Random();
-			uint slot = 0;
-			foreach (outki.Item item in m_itemData.Values)
+			foreach (var se in m_startingInventory)
 			{
-				int count = 1;//r.Next(0, (int)(item.StackSize + 1));
-				if (item.Ammo != null)
-					count = 25;
-				
-				if (count > 0)
-				{
-					p.Inventory.Add(MakeItem(item, (uint)count, slot++));
-				}
+				ServerPlayer.ItemInstance neue = MakeItem(m_itemData[se.ItemTypeId], se.Count, se.Slot);
+				neue.UserState = se.State;
+				neue.EquippedInSlot = se.EquipOnCharacter;
+				p.Inventory.Add(neue);
 			}
-
+				
 			Console.WriteLine("Gave out " + p.Inventory.Count + " items");
 			return p;
 		}
@@ -143,6 +149,18 @@ namespace UnityMMO
 				SyncNonCharacters(0, ws);
 			}
 			return ws;
+		}
+
+		public void ResetCharacter(ServerPlayer p, ServerCharacter c)
+		{
+			c.ResetFromData(c.Data);
+			c.Equipped.Clear();
+			foreach (var pi in p.Inventory)
+			{
+				if (pi.EquippedInSlot != 0)
+					ServerPlayerCommands.HandlePlayerEquip(p, c, 1, pi.Id);
+			}
+			c.SendNewEquip = true;
 		}
 
 		public void AddSpawnpoint(Vector3 pos)

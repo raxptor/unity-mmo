@@ -37,6 +37,7 @@ namespace UnityMMO
 			ITEM_DROP,
 			ITEM_USE,
 			ITEM_MOVE,
+			ITEM_SET_STATE,
 			CRAFT,
 			HIT
 		}

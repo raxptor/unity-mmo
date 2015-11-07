@@ -106,7 +106,16 @@ namespace UnityMMO
 				SetupSharedEntity(buf, server, type, id);
 			}
 
-			Bitstream.ReadStringDumb(buf);
+			server.m_startingInventory = new WorldServer.LoadoutEntry[Bitstream.ReadCompressedUint(buf)];
+			for (uint i = 0; i != server.m_startingInventory.Length; i++)
+			{
+				server.m_startingInventory[i].ItemTypeId = Bitstream.ReadCompressedUint(buf);
+				server.m_startingInventory[i].Count = Bitstream.ReadCompressedUint(buf);
+				server.m_startingInventory[i].Slot = Bitstream.ReadCompressedUint(buf);
+				server.m_startingInventory[i].State = Bitstream.ReadCompressedUint(buf);
+				server.m_startingInventory[i].EquipOnCharacter = Bitstream.ReadCompressedUint(buf);
+			}
+
 			string pathFile = Bitstream.ReadStringDumb(buf);
 			Debug.Log("Path file is [" + pathFile + "]");
 

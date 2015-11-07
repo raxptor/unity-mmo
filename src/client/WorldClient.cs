@@ -23,10 +23,12 @@ namespace UnityMMO
 		public class ItemInstance
 		{
 			public uint Id; // instance id
-			public uint ItemId; // type id
+			public uint TypeId; // type id
+			public object ItemData;
 			public uint Count;
-			public uint Slot;
 			public uint ChildCount;
+			public uint UserState;
+			public uint Slot;
 			public List<ItemInstance> Children;
 		};
 
@@ -41,6 +43,7 @@ namespace UnityMMO
 		private IGameInstClient _client;
 		private Dictionary<int, Character> _characters;
 		private Dictionary<uint, Entity> _entities;
+		private Dictionary<uint, ItemInstance> _itemInstances;
 		private List<Player> _players;
 		private PacketLaneReliableOrdered _pl_reliable;
 		private PacketLaneUnreliableOrdered _pl_unreliable;
@@ -53,6 +56,9 @@ namespace UnityMMO
 		private DateTime _startTime = DateTime.Now;
 		private uint _startIteration = 0;
 
+		public delegate object ResolveItemData(uint typeId);
+		private ResolveItemData _itemDataResolver;
+
 		public WorldClient(IGameInstClient client)
 		{
 			_client = client;
@@ -61,6 +67,20 @@ namespace UnityMMO
 			_pl_reliable = new PacketLaneReliableOrdered();
 			_pl_unreliable = new PacketLaneUnreliableOrdered();
 			_players = new List<Player>();
+			_itemInstances = new Dictionary<uint, ItemInstance>();
+		}
+
+		public void SetItemDataResolver(ResolveItemData rid)
+		{
+			_itemDataResolver = rid;
+		}
+
+		public ItemInstance GetItemInstance(uint instanceId)
+		{
+			ItemInstance itm;
+			if (_itemInstances.TryGetValue(instanceId, out itm))
+				return itm;
+			return null;
 		}
 
 		public void AddCharacter(int index, Character character)
@@ -127,27 +147,15 @@ namespace UnityMMO
 				Debug.Log("Adjusting local time by " + diff + " ticks ahead");
 			}
 		}
-
-		public ItemInstance GetItemInstance(uint id)
-		{
-			if (_self == null)
-				return null;
 			
-			foreach (var ii in _self.Inventory)
-			{
-				if (ii.Id == id)
-					return ii;
-			}
-			return null;
-		}
-
-		private static ItemInstance ReadInventoryItem(Bitstream.Buffer b)
+		private ItemInstance ReadInventoryItem(Bitstream.Buffer b)
 		{
 			ItemInstance item = new ItemInstance();
 			item.Id = Bitstream.ReadCompressedUint(b);
-			item.ItemId = Bitstream.ReadCompressedUint(b);
+			item.TypeId = Bitstream.ReadCompressedUint(b);
 			item.Count = Bitstream.ReadCompressedUint(b);
 			item.Slot = Bitstream.ReadCompressedUint(b);
+			item.UserState = Bitstream.ReadCompressedUint(b);
 			item.ChildCount = Bitstream.ReadCompressedUint(b);
 			if (item.ChildCount > 0)
 			{
@@ -161,6 +169,11 @@ namespace UnityMMO
 					}
 				}
 			}
+
+			if (_itemDataResolver != null)
+				item.ItemData = _itemDataResolver(item.TypeId);
+
+			_itemInstances[item.Id] = item;
 			return item;
 		}
 
@@ -428,6 +441,16 @@ namespace UnityMMO
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
 			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_USE);
 			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void SetItemState(uint itemInstanceId, uint newState)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_SET_STATE);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			Bitstream.PutCompressedUint(cmd, newState);
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
 		}

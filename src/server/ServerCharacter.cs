@@ -308,6 +308,7 @@ namespace UnityMMO
 				Bitstream.PutBits(stream, 1, 1);
 				Bitstream.PutCompressedUint(stream, v.Id);
 				Bitstream.PutCompressedUint(stream, v.Item.Id);
+				Bitstream.PutCompressedUint(stream, v.UserState);
 			}
 			Bitstream.PutBits(stream, 1, 0);
 		}

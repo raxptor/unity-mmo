@@ -158,6 +158,10 @@ namespace UnityMMO
 				{
 					_dataSynchronizer.RestorePlayer(s.PlayerId, s.Player, s.ServerCharacter);
 				}
+				else
+				{
+					_worldServer.ResetCharacter(s.Player, s.ServerCharacter);
+				}
 
 				// got contror of a character.
 				netki.MMOHumanAttachController status = new netki.MMOHumanAttachController();
