@@ -16,6 +16,11 @@ namespace UnityMMO
 			public uint LastIteration;
 		}
 
+		public void OnHit(uint iteration, ServerCharacter character, Entity inflictor,  string hitbox, int amount)
+		{
+
+		}
+
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
 			if (character.ControllerData == null)
@@ -127,8 +132,17 @@ namespace UnityMMO
 										Bitstream.PutCompressedInt(hitBuf, amt);
 										hitBuf.Flip();
 										tgt.Events.Add(hitBuf);
+
+										if (tgt.Controller != null)
+											tgt.Controller.OnHit(iteration, tgt, character, hitTarget, amt);
 									}
 								}
+
+								Bitstream.Buffer fireBuf = Bitstream.Buffer.Make(new byte[256]);
+								Bitstream.PutCompressedUint(fireBuf, 2); // type: fire
+								fireBuf.Flip();
+								character.Events.Add(fireBuf);
+
 							}
 							break;
 						}

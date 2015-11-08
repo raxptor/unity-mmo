@@ -40,7 +40,7 @@ namespace UnityMMO
 		public uint _timeScale = 1;
 		private uint _itemInstanceIDs = 1234;
 
-		public bool _characterMirroringHax = false;
+		public bool _characterMirroringHax = true;
 		public bool _allItemsHax = false;
 
 		public struct LoadoutEntry
@@ -353,7 +353,7 @@ namespace UnityMMO
 			{
 				if (next == null)
 				{
-					next = Bitstream.Buffer.Make(new byte[128]);
+					next = Bitstream.Buffer.Make(new byte[4096]);
 				}
 				if (_activeCharacters[i].WriteUnreliableUpdate(next))
 				{
@@ -403,7 +403,7 @@ namespace UnityMMO
 			{
 				if (next == null)
 				{
-					next = Bitstream.Buffer.Make(new byte[128]);
+					next = Bitstream.Buffer.Make(new byte[1024]);
 				}
 				if (_activeCharacters[i].WriteReliableUpdate(next))
 				{
@@ -423,7 +423,7 @@ namespace UnityMMO
 					{
 						if (output == null)
 						{
-							output = Bitstream.Buffer.Make(new byte[512]);
+							output = Bitstream.Buffer.Make(new byte[1024]);
 							DatagramCoding.WriteUpdateBlockHeader(output, UpdateBlock.Type.CHARACTERS);
 							Bitstream.PutCompressedUint(output, iteration);
 						}

@@ -7,6 +7,7 @@ namespace UnityMMO
 	public interface Controller
 	{
 		void ControlMe(uint iteration, ServerCharacter character);
+		void OnHit(uint iteration, ServerCharacter character, Entity inflictor, string hitbox, int amount);
 	}
 
 	public struct Vector3
@@ -146,6 +147,14 @@ namespace UnityMMO
 		// For testing only.
 		public void MirrorIt(ServerCharacter from, Vector3 ofs)
 		{
+			Events.Clear();
+			foreach (var e in from.Events)
+			{
+				Bitstream.Buffer bf = new Bitstream.Buffer();
+				Bitstream.Copy(bf, e);
+				Events.Add(bf);
+			}
+			SendNewEquip = from.SendNewEquip;
 			Equipped = from.Equipped;
 			Data = from.Data;
 			Position = from.Position + ofs;
@@ -155,6 +164,7 @@ namespace UnityMMO
 			CharacterTypeId = from.CharacterTypeId;
 			TimeOffset = from.TimeOffset;
 			GotNew = from.GotNew;
+			Dead = from.Dead;
 		}
 
 		public bool Alive()
@@ -294,6 +304,12 @@ namespace UnityMMO
 				target.Children.Add(itm);
 				Player.InventoryChanged = true;
 			}
+
+			Bitstream.Buffer fireBuf = Bitstream.Buffer.Make(new byte[256]);
+			Bitstream.PutCompressedUint(fireBuf, 3); // type: roload
+			fireBuf.Flip();
+			Events.Add(fireBuf);
+
 		}
 
 		public override void Update(uint iteration, float dt)
@@ -349,7 +365,9 @@ namespace UnityMMO
 				Bitstream.PutCompressedUint(stream, (uint)Events.Count);
 				for (int i = 0; i < Events.Count; i++)
 				{
+					Bitstream.SyncByte(stream);
 					Bitstream.Insert(stream, Events[i]);
+					Bitstream.SyncByte(stream);
 				}
 				Events.Clear();
 			}

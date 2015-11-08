@@ -90,6 +90,9 @@ namespace UnityMMO
 
 			public float SpawnTimer;
 			public float CorpseTimer;
+
+			public float HitCooldown;
+
 	
 			public State CurState;
 		};
@@ -273,6 +276,9 @@ namespace UnityMMO
 					headingAmt = 0.5f + 0.5f * headingAmt;
 				}
 
+				float lastSpeed = (float) Math.Sqrt(Vector3.Dot(character.Velocity, character.Velocity));
+				float acceleration = m_MoveSpeed * 0.40f + 0.40f * lastSpeed; 
+
 				float move = headingAmt * dt * m_MoveSpeed;
 				if (move > toTargetD)
 				{
@@ -388,10 +394,27 @@ namespace UnityMMO
 			}
 		}
 
+		public void OnHit(uint iteration, ServerCharacter character, Entity inflictor,  string hitbox, int amount)
+		{
+			if (!character.Alive())
+				return;
+			
+			Console.WriteLine("Hit on " + hitbox + "!");
+			if (hitbox.Length > 0)
+			{
+				character.AddAnimEvent(hitbox);
+			}
+
+			Data ccd = character.ControllerData as Data;
+			if (ccd != null)
+			{
+				ccd.HitCooldown = 0.5f; // cool down
+				ccd.CurState = Data.State.IDLE;
+			}
+		}
+
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
-			character.Velocity = new Vector3(0,0,0);
-
 			if (!character.Spawned)
 			{
 				Data ccd = character.ControllerData as Data;
@@ -426,6 +449,8 @@ namespace UnityMMO
 				nd.SpawnTimer = m_MinSpawnTime + (float)m_random.NextDouble() * (m_MaxSpawnTime - m_MinSpawnTime);
 				nd.CorpseTimer = 10.0f;
 				character.ControllerData = nd;
+
+				character.Velocity = new Vector3(0,0,0);
 			}
 
 			if (character.ControllerData == null)
@@ -437,6 +462,7 @@ namespace UnityMMO
 
 			if (character.Dead)
 			{
+				character.Velocity = new Vector3(0, 0, 0);
 				d.SpawnTimer -= dt;
 				d.CorpseTimer -= dt;
 				if (d.CorpseTimer < 0)
@@ -454,10 +480,21 @@ namespace UnityMMO
 			{
 				Fall(character, d, dt);
 				character.GotNew = true;
+				return;
 			}
 
 			for (int i = 0; i < m_Attacks.Length; i++)
 				d.AttackCooldown[i] -= dt;
+
+			if (d.HitCooldown > 0)
+			{
+				d.HitCooldown -= dt;
+				if (d.HitCooldown < 0)
+				{
+					d.HitCooldown = 0;
+				}
+				return;
+			}
 
 			if (d.GroundedOnPoly != -1)
 			{
@@ -465,6 +502,7 @@ namespace UnityMMO
 				{
 					case Data.State.IDLE:
 						{
+							character.Velocity = 0.20f * character.Velocity;
 							d.CurrentPath = null;
 							d.CurState = Data.State.PATROL;
 							d.Target = null;

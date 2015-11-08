@@ -178,6 +178,8 @@ namespace UnityMMO
 				se.m_RespawnTimeMin = Bitstream.ReadFloat(buf);
 				se.m_RespawnTimeMax = Bitstream.ReadFloat(buf);
 				se.m_UseTime = Bitstream.ReadFloat(buf);
+				se.m_LootTable = new LootTable();
+				se.m_LootTable.ParseFromBitstream(server, buf);
 				server.AddEntity(se);
 				Debug.Log("Adding scavenge at " + se.m_Position);
 			}
