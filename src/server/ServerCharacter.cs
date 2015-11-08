@@ -224,6 +224,12 @@ namespace UnityMMO
 
 		public bool UseAmmoInWeapon(ServerPlayer.ItemInstance item)
 		{
+			Debug.Log("Weapon ammo list:");
+			foreach (var se in item.Children)
+			{
+				Debug.Log("   => " + se.Id + ":" + se.Count);
+			}
+					
 			if (item.Item.Weapon == null)
 				return false;
 			if (item.Children == null)
@@ -291,6 +297,7 @@ namespace UnityMMO
 						got = (int)ii.Count;
 						toFill -= (int)ii.Count;
 						Player.Inventory.RemoveAt(i);
+						Player.InventoryChanged = true;
 						i--;
 					}
 				}
@@ -298,6 +305,7 @@ namespace UnityMMO
 
 			if (_fillWith != null)
 			{
+				Console.WriteLine("filled with got=" + got);
 				ServerPlayer.ItemInstance itm = World.MakeItem(_fillWith, (uint)got, 0);
 				if (target.Children == null)
 					target.Children = new List<ServerPlayer.ItemInstance>();
@@ -353,6 +361,7 @@ namespace UnityMMO
 				SendNewEquip = false;
 				Bitstream.PutBits(stream, 1, 1);
 				WriteEquips(stream);
+				Console.WriteLine("sending new equip");
 			}
 			else
 			{

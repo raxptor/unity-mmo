@@ -418,6 +418,7 @@ namespace UnityMMO
 
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
+			return;
 			if (!character.Spawned)
 			{
 				Data ccd = character.ControllerData as Data;

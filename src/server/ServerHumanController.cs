@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using netki;
+using System;
 
 namespace UnityMMO
 {
@@ -103,7 +104,7 @@ namespace UnityMMO
 							uint characterId = Bitstream.ReadCompressedUint(buf);
 							Vector3 localModelPos;
 							NetUtil.ReadScaledVec3(buf, 0.001f, out localModelPos);
-
+							Console.WriteLine("FIRE! with hitbox [" + hitTarget + "]");
 							if (Alive)
 							{
 								ServerPlayer.ItemInstance ii = character.Player.GetInventoryItem(itemInstanceID);
@@ -112,7 +113,10 @@ namespace UnityMMO
 								if (ii.Item.Weapon == null)
 									break;
 								if (!character.UseAmmoInWeapon(ii))
+								{
+									Console.WriteLine("Canont use ammo in weapon");
 									break;
+								}
 
 								character.Player.InventoryChanged = true;
 								
