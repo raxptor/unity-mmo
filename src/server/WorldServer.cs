@@ -40,7 +40,7 @@ namespace UnityMMO
 		public uint _timeScale = 1;
 		private uint _itemInstanceIDs = 1234;
 
-		public bool _characterMirroringHax = true;
+		public bool _characterMirroringHax = false;
 		public bool _allItemsHax = false;
 
 		public struct LoadoutEntry
@@ -210,6 +210,7 @@ namespace UnityMMO
 		{
 			lock (this)
 			{
+				
 				character.Controller = null;
 			}
 		}
@@ -399,6 +400,8 @@ namespace UnityMMO
 			Bitstream.Buffer[] entityOuts = new Bitstream.Buffer[_activeEntities.Count];
 
 			Bitstream.Buffer next = null;
+			Bitstream.Buffer tmp = new Bitstream.Buffer();
+
 			for (int i = 0; i < _activeCharacters.Count; i++)
 			{
 				if (next == null)
@@ -430,6 +433,7 @@ namespace UnityMMO
 						// character index
 						Bitstream.PutBits(output, 16, (uint)i);
 						Bitstream.SyncByte(output);
+						Bitstream.Copy(tmp, outs[i]);
 						Bitstream.Insert(output, outs[i]);
 						Bitstream.SyncByte(output);
 					}

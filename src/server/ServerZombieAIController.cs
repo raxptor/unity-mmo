@@ -17,6 +17,7 @@ namespace UnityMMO
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
 		public float m_EngageDistance = 1.5f;
+		public uint m_PathCooldown;
 
 		public struct AttackDef
 		{
@@ -92,7 +93,7 @@ namespace UnityMMO
 			public float CorpseTimer;
 
 			public float HitCooldown;
-
+			public uint PathCooldown;
 	
 			public State CurState;
 		};
@@ -122,8 +123,7 @@ namespace UnityMMO
 			int idx;
 			if (!character.World._navMVP.GetPoly(character.Position, out idx, out ground_y))
 			{
-				UnityMMO.Debug.Log("No poly at " + character.Position.x + " " + character.Position.z);
-				// halp!
+				SnapToNavMesh(character, d);
 				return;
 			}
 
@@ -151,8 +151,11 @@ namespace UnityMMO
 			foreach (ServerCharacter ch in w._activeCharacters)
 			{
 				float closest = 0;
-				if (ch.Data.HumanControllable && ch.Alive())
+				if (ch.Data.HumanControllable)
 				{
+					if (!ch.Alive())
+						continue;
+				
 					int idx;
 					float ground_y;
 					if (!character.World._navMVP.GetPoly(character.Position, out idx, out ground_y))
@@ -545,15 +548,19 @@ namespace UnityMMO
 							ServerCharacter potTarget = SpotTarget(character, d);
 							if (potTarget != null)
 							{
-								Path p = PlanPathTo(character, potTarget.Position);
-								if (p != null)
+								if (d.PathCooldown <= iteration)
 								{
-									Console.WriteLine("Going into chase mode!");
-									d.Target = potTarget;
-									d.TargetPathTarget = potTarget.Position;
-									d.TargetPathIsComplete = potTarget.Position == p.track[p.track.Length - 1];
-									d.CurrentPath = p;
-									d.CurState = Data.State.CHASE;
+									d.PathCooldown = iteration + PathCooldownIterations;
+									Path p = PlanPathTo(character, potTarget.Position);
+									if (p != null && _Dist(p.track[p.track.Length-1], character.Position) > 0.10f)
+									{
+										Console.WriteLine("Going into chase mode!");
+										d.Target = potTarget;
+										d.TargetPathTarget = potTarget.Position;
+										d.TargetPathIsComplete = potTarget.Position == p.track[p.track.Length - 1];
+										d.CurrentPath = p;
+										d.CurState = Data.State.CHASE;
+									}
 								}
 							}
 						}

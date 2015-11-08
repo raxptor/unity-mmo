@@ -1,4 +1,5 @@
 using netki;
+using System;
 using System.Collections.Generic;
 
 namespace UnityMMO
@@ -111,6 +112,8 @@ namespace UnityMMO
 		{
 			lock (this)
 			{
+				Console.WriteLine("Player connected " + player.name);
+					
 				Slot s = SlotByPlayerId(playerId);
 				if (s == null)
 				{
@@ -235,6 +238,7 @@ namespace UnityMMO
 				Slot s = SlotByPlayerId(player.name);
 				if (s != null)
 				{
+					Console.WriteLine("Player disconnected " + player.name);
 					ResetSlot(s);
 					_slots.Remove(s);
 				}
