@@ -419,7 +419,7 @@ namespace UnityMMO
 			Data ccd = character.ControllerData as Data;
 			if (ccd != null)
 			{
-				ccd.HitCooldown = 0.1f; // cool down
+				ccd.HitCooldown = 0.30f; // cool down
 				ccd.Target = inflictor as ServerCharacter;
 				ccd.CurState = Data.State.ATTACK;
 			}
