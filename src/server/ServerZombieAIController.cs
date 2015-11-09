@@ -13,6 +13,7 @@ namespace UnityMMO
 		public float m_HP;
 		public float m_PatrolRadius;
 		public float m_SearchRadius;
+		public float m_GiveUpRange;
 		public float m_MoveSpeed;
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
@@ -38,6 +39,7 @@ namespace UnityMMO
 			m_HP = Bitstream.ReadFloat(b);
 			m_PatrolRadius = Bitstream.ReadFloat(b);
 			m_SearchRadius = Bitstream.ReadFloat(b);
+			m_GiveUpRange = Bitstream.ReadFloat(b);
 			m_MoveSpeed = Bitstream.ReadFloat(b);
 			m_MinSpawnTime = Bitstream.ReadFloat(b);
 			m_MaxSpawnTime = Bitstream.ReadFloat(b);
@@ -164,6 +166,10 @@ namespace UnityMMO
 					}
 
 					float dist = _Dist(ch.Position, character.Position);
+					float dist2 = _Dist(ch.Position, character.Data.DefaultSpawnPos);
+					if (dist2 > m_SearchRadius + m_PatrolRadius)
+						continue;
+					
 					if (dist < closest || closest == 0 && dist < m_SearchRadius)
 					{
 						closest = dist;
@@ -413,6 +419,7 @@ namespace UnityMMO
 			if (ccd != null)
 			{
 				ccd.HitCooldown = 0.5f; // cool down
+				ccd.Target = inflictor as ServerCharacter;
 				ccd.CurState = Data.State.ATTACK;
 			}
 		}
@@ -575,6 +582,14 @@ namespace UnityMMO
 							if (d.CurrentPath == null || d.Target == null || !d.Target.Alive())
 							{
 								Console.WriteLine("Target unspawned, lost target or it unspawned. Idling.");
+								d.CurState = Data.State.IDLE;
+								break;
+							}
+
+							if (_Dist2D(character.Position, character.Data.DefaultSpawnPos) > m_GiveUpRange)
+							{
+								Console.WriteLine("Not chasing; too far away");
+								d.Target = null;
 								d.CurState = Data.State.IDLE;
 								break;
 							}
