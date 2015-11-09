@@ -17,7 +17,7 @@ namespace UnityMMO
 		public float m_MoveSpeed;
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
-		public float m_EngageDistance = 1.5f;
+		public float m_EngageDistance = 1.1f;
 		public uint m_PathCooldown;
 
 		public struct AttackDef
@@ -419,7 +419,7 @@ namespace UnityMMO
 			Data ccd = character.ControllerData as Data;
 			if (ccd != null)
 			{
-				ccd.HitCooldown = 0.5f; // cool down
+				ccd.HitCooldown = 0.1f; // cool down
 				ccd.Target = inflictor as ServerCharacter;
 				ccd.CurState = Data.State.ATTACK;
 			}
