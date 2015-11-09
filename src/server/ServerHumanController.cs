@@ -101,10 +101,11 @@ namespace UnityMMO
 						{
 							uint itemInstanceID = Bitstream.ReadCompressedUint(buf);
 							string hitTarget = Bitstream.ReadStringDumb(buf);
+							string animName = Bitstream.ReadStringDumb(buf);
 							uint characterId = Bitstream.ReadCompressedUint(buf);
 							Vector3 localModelPos;
 							NetUtil.ReadScaledVec3(buf, 0.001f, out localModelPos);
-							Console.WriteLine("FIRE! with hitbox [" + hitTarget + "]");
+							Console.WriteLine("FIRE! with hitbox [" + hitTarget + "] and anim[" + animName + "]");
 							if (Alive)
 							{
 								ServerPlayer.ItemInstance ii = character.Player.GetInventoryItem(itemInstanceID);
@@ -112,10 +113,18 @@ namespace UnityMMO
 									break;
 								if (ii.Item.Weapon == null)
 									break;
-								if (!character.UseAmmoInWeapon(ii))
+
+								if (ii.Item.Weapon.Type != outki.WeaponType.WEAPONTYPE_MELEE)
 								{
-									Console.WriteLine("Canont use ammo in weapon");
-									break;
+									if (!character.UseAmmoInWeapon(ii))
+									{
+										Console.WriteLine("Canont use ammo in weapon");
+										break;
+									}
+								}
+								else
+								{
+									// TODO: Track stamina.
 								}
 
 								character.Player.InventoryChanged = true;
@@ -144,9 +153,9 @@ namespace UnityMMO
 
 								Bitstream.Buffer fireBuf = Bitstream.Buffer.Make(new byte[256]);
 								Bitstream.PutCompressedUint(fireBuf, 2); // type: fire
+								Bitstream.PutStringDumb(fireBuf, animName);
 								fireBuf.Flip();
 								character.Events.Add(fireBuf);
-
 							}
 							break;
 						}
@@ -188,6 +197,7 @@ namespace UnityMMO
 							character.World.ResetPlayerToDefaults(character.Player);
 							character.World.ResetCharacter(character.Player, character);
 
+							character.Dead = false;
 							character.Position = spawnPos;
 							character.CharacterTypeId = CharacterId;
 							character.Spawned = true;

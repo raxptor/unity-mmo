@@ -386,6 +386,7 @@ namespace UnityMMO
 				int dmg = m_random.Next((int)m_Attacks[which].AttackMin, (int)m_Attacks[which].AttackMax + 1);
 				target.TakeDamage(dmg);
 				me.AddAnimEvent(m_Attacks[which].AnimTrigger);
+				me.AddSoundEvent("attack");
 
 				Bitstream.Buffer hitBuf = Bitstream.Buffer.Make(new byte[256]);
 				Bitstream.PutCompressedUint(hitBuf, 1); // type: hit
@@ -412,13 +413,12 @@ namespace UnityMMO
 			if (ccd != null)
 			{
 				ccd.HitCooldown = 0.5f; // cool down
-				ccd.CurState = Data.State.IDLE;
+				ccd.CurState = Data.State.ATTACK;
 			}
 		}
 
 		public void ControlMe(uint iteration, ServerCharacter character)
 		{
-			return;
 			if (!character.Spawned)
 			{
 				Data ccd = character.ControllerData as Data;
@@ -549,6 +549,9 @@ namespace UnityMMO
 							ServerCharacter potTarget = SpotTarget(character, d);
 							if (potTarget != null)
 							{
+								if (d.Target == null && potTarget != null && _Dist(potTarget.Position, character.Position) > 1.5f)
+									character.AddSoundEvent("spotted");
+									
 								if (d.PathCooldown <= iteration)
 								{
 									d.PathCooldown = iteration + PathCooldownIterations;

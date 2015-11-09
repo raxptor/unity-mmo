@@ -180,9 +180,11 @@ namespace UnityMMO
 				{
 					HP = 0;
 					OnDeath();
+					AddSoundEvent("death");
 				}
 				else
 				{
+					AddSoundEvent("hit");
 					HP = (uint)(HP - amt);
 				}
 				GotNew = true;
@@ -201,6 +203,15 @@ namespace UnityMMO
 			Bitstream.Buffer b = Bitstream.Buffer.Make(new byte[128]);
 			Bitstream.PutCompressedUint(b, 0); // anim
 			Bitstream.PutStringDumb(b, anim);
+			b.Flip();
+			Events.Add(b);
+		}
+
+		public void AddSoundEvent(string sound)
+		{
+			Bitstream.Buffer b = Bitstream.Buffer.Make(new byte[128]);
+			Bitstream.PutCompressedUint(b, 4); // sound
+			Bitstream.PutStringDumb(b, sound);
 			b.Flip();
 			Events.Add(b);
 		}
@@ -225,6 +236,9 @@ namespace UnityMMO
 		public bool UseAmmoInWeapon(ServerPlayer.ItemInstance item)
 		{
 			Debug.Log("Weapon ammo list:");
+			if (item.Children == null)
+				return false;
+			
 			foreach (var se in item.Children)
 			{
 				Debug.Log("   => " + se.Id + ":" + se.Count);

@@ -409,12 +409,13 @@ namespace UnityMMO
 			_pl_reliable.Send(cmd);
 		}
 
-		public void Fire(uint itemInstanceId, uint characterId, string hitTarget, Vector3 localModelHit)
+		public void Fire(uint itemInstanceId, uint characterId, string hitTarget, string animName, Vector3 localModelHit)
 		{
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
 			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.FIRE);
 			Bitstream.PutCompressedUint(cmd, itemInstanceId);
 			Bitstream.PutStringDumb(cmd, hitTarget);
+			Bitstream.PutStringDumb(cmd, animName);
 			Bitstream.PutCompressedUint(cmd, characterId);
 			NetUtil.PutScaledVec3(cmd, 0.001f, localModelHit);
 			cmd.Flip();
