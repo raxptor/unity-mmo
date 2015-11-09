@@ -96,6 +96,7 @@ namespace UnityMMO
 
 			public float HitCooldown;
 			public uint PathCooldown;
+			public uint SpottedSoundCooldown;
 	
 			public State CurState;
 		};
@@ -557,7 +558,14 @@ namespace UnityMMO
 							if (potTarget != null)
 							{
 								if (d.Target == null && potTarget != null && _Dist(potTarget.Position, character.Position) > 1.5f)
-									character.AddSoundEvent("spotted");
+								{
+									if (iteration > d.SpottedSoundCooldown)
+									{
+										character.AddSoundEvent("spotted");
+										// hax for now
+										d.SpottedSoundCooldown = iteration + (uint)m_random.Next(2000, 15000);
+									}
+								}
 									
 								if (d.PathCooldown <= iteration)
 								{
