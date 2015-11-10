@@ -225,7 +225,14 @@ namespace UnityMMO
 
 			Vector3 heading = ServerCharacter.HeadingVector(character.Heading);
 			float dot = Vector3.Dot(heading, new Vector3(toTargetNorm.x, 0, toTargetNorm.z));
-			float angle = (float)Math.Acos(dot);
+
+			float angle;
+			if (dot < -0.90)
+				angle = 3.14f;
+			if (dot > 0.999)
+				angle = 0;
+			else 
+				angle = (float)Math.Acos(dot);
 
 			float turnAmt = Math.Abs(angle);
 			int turnDir = Math.Sign((float)Vector3.Cross(heading, toTargetNorm).y);
