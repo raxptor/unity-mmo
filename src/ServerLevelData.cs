@@ -12,6 +12,7 @@ namespace UnityMMO
 			data.DefaultSpawnPos.x = Bitstream.ReadFloat(buf);
 			data.DefaultSpawnPos.y = Bitstream.ReadFloat(buf);
 			data.DefaultSpawnPos.z = Bitstream.ReadFloat(buf);
+			data.HP = Bitstream.ReadCompressedUint(buf);
 		}
 
 		public delegate byte[] LoadNavMeshFn(string pathFile);

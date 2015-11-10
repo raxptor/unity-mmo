@@ -134,7 +134,7 @@ namespace UnityMMO
 									System.Console.WriteLine("Hit " + characterId + "!");
 									if (characterId < character.World._activeCharacters.Count)
 									{
-										int amt = 10;
+										int amt = (int)ii.Item.Weapon.Damage;
 										ServerCharacter tgt = character.World._activeCharacters[(int)characterId];
 										tgt.TakeDamage(amt);
 
