@@ -494,6 +494,17 @@ namespace UnityMMO
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
 			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.INTERACT);
 			Bitstream.PutCompressedUint(cmd, entityId);
+			Bitstream.PutBits(cmd, 1, 1);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
+		public void CancelInteract(uint entityId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WriteCharacterEventBlockHeader(cmd, EventBlock.Type.INTERACT);
+			Bitstream.PutCompressedUint(cmd, entityId);
+			Bitstream.PutBits(cmd, 1, 0);
 			cmd.Flip();
 			_pl_reliable.Send(cmd);
 		}

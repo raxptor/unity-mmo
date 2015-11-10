@@ -162,13 +162,14 @@ namespace UnityMMO
 					case EventBlock.Type.INTERACT:
 						{
 							uint entityId = Bitstream.ReadCompressedUint(buf);
+							uint begin = Bitstream.ReadBits(buf, 1);
 							if (Alive)
 							{
 								foreach (Entity e in character.World._activeEntities)
 								{
 									if (e.m_Id == entityId)
 									{
-										e.OnInteract(iteration, character);
+										e.OnInteract(iteration, character, begin != 0);
 									}
 								}
 							}
