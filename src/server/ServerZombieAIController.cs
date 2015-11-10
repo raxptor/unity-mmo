@@ -17,7 +17,7 @@ namespace UnityMMO
 		public float m_MoveSpeed;
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
-		public float m_EngageDistance = 1.5f;
+		public float m_EngageDistance = 1.1f;
 		public uint m_PathCooldown;
 
 		public struct AttackDef
@@ -96,6 +96,7 @@ namespace UnityMMO
 
 			public float HitCooldown;
 			public uint PathCooldown;
+			public uint SpottedSoundCooldown;
 	
 			public State CurState;
 		};
@@ -418,7 +419,7 @@ namespace UnityMMO
 			Data ccd = character.ControllerData as Data;
 			if (ccd != null)
 			{
-				ccd.HitCooldown = 0.5f; // cool down
+				ccd.HitCooldown = 0.30f; // cool down
 				ccd.Target = inflictor as ServerCharacter;
 				ccd.CurState = Data.State.ATTACK;
 			}
@@ -561,7 +562,14 @@ namespace UnityMMO
 							if (potTarget != null)
 							{
 								if (d.Target == null && potTarget != null && _Dist(potTarget.Position, character.Position) > 1.5f)
-									character.AddSoundEvent("spotted");
+								{
+									if (iteration > d.SpottedSoundCooldown)
+									{
+										character.AddSoundEvent("spotted");
+										// hax for now
+										d.SpottedSoundCooldown = iteration + (uint)m_random.Next(2000, 15000);
+									}
+								}
 									
 								if (d.PathCooldown <= iteration)
 								{
