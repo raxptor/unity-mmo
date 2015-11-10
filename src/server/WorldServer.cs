@@ -43,13 +43,20 @@ namespace UnityMMO
 		public bool _characterMirroringHax = false;
 		public bool _allItemsHax = false;
 
-		public struct LoadoutEntry
+		public struct LoadoutChild
+		{
+			public uint ItemTypeId;
+			public uint Count;
+		}
+
+		public class LoadoutEntry
 		{
 			public uint ItemTypeId;
 			public uint Count;
 			public uint Slot;
 			public uint State;
 			public uint EquipOnCharacter;
+			public LoadoutChild[] Children;
 		}
 
 		public LoadoutEntry[] m_startingInventory;
@@ -91,6 +98,18 @@ namespace UnityMMO
 					ServerPlayer.ItemInstance neue = MakeItem(m_itemData[se.ItemTypeId], se.Count, se.Slot);
 					neue.UserState = se.State;
 					neue.EquippedInSlot = se.EquipOnCharacter;
+
+					// add in all the children
+					if (se.Children.Length > 0)
+					{
+						neue.Children = new List<ServerPlayer.ItemInstance>();
+						foreach (var c in se.Children)
+						{
+							ServerPlayer.ItemInstance child = MakeItem(m_itemData[c.ItemTypeId], c.Count, 0);
+							neue.Children.Add(child);
+						}
+					}
+
 					p.Inventory.Add(neue);
 				}
 			}

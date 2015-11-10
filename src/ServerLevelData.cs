@@ -151,11 +151,19 @@ namespace UnityMMO
 			server.m_startingInventory = new WorldServer.LoadoutEntry[Bitstream.ReadCompressedUint(buf)];
 			for (uint i = 0; i != server.m_startingInventory.Length; i++)
 			{
-				server.m_startingInventory[i].ItemTypeId = Bitstream.ReadCompressedUint(buf);
-				server.m_startingInventory[i].Count = Bitstream.ReadCompressedUint(buf);
-				server.m_startingInventory[i].Slot = Bitstream.ReadCompressedUint(buf);
-				server.m_startingInventory[i].State = Bitstream.ReadCompressedUint(buf);
-				server.m_startingInventory[i].EquipOnCharacter = Bitstream.ReadCompressedUint(buf);
+				WorldServer.LoadoutEntry le = new WorldServer.LoadoutEntry();
+				le.ItemTypeId = Bitstream.ReadCompressedUint(buf);
+				le.Count = Bitstream.ReadCompressedUint(buf);
+				le.Slot = Bitstream.ReadCompressedUint(buf);
+				le.State = Bitstream.ReadCompressedUint(buf);
+				le.EquipOnCharacter = Bitstream.ReadCompressedUint(buf);
+				le.Children = new WorldServer.LoadoutChild[Bitstream.ReadCompressedUint(buf)];
+				for (uint j=0;j<le.Children.Length;j++)
+				{
+					le.Children[j].ItemTypeId = Bitstream.ReadCompressedUint(buf);
+					le.Children[j].Count = Bitstream.ReadCompressedUint(buf);
+				}
+				server.m_startingInventory[i] = le;
 			}
 
 			string pathFile = Bitstream.ReadStringDumb(buf);
