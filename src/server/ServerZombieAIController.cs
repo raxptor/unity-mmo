@@ -456,7 +456,8 @@ namespace UnityMMO
 				nd.GroundedOnPoly = -1;
 				nd.LastControllerUpdate = iteration;
 				nd.CurState = Data.State.IDLE;
-				nd.AttackCooldown = new float[m_Attacks.Length];
+				if (m_Attacks != null)
+					nd.AttackCooldown = new float[m_Attacks.Length];
 				nd.SpawnTimer = m_MinSpawnTime + (float)m_random.NextDouble() * (m_MaxSpawnTime - m_MinSpawnTime);
 				nd.CorpseTimer = 10.0f;
 				character.ControllerData = nd;
@@ -494,8 +495,11 @@ namespace UnityMMO
 				return;
 			}
 
-			for (int i = 0; i < m_Attacks.Length; i++)
-				d.AttackCooldown[i] -= dt;
+			if (m_Attacks != null)
+			{
+				for (int i = 0; i < m_Attacks.Length; i++)
+					d.AttackCooldown[i] -= dt;
+			}
 
 			if (d.HitCooldown > 0)
 			{
