@@ -470,6 +470,15 @@ namespace UnityMMO
 			_pl_reliable.Send(cmd);
 		}
 
+		public void AutoStackItem(uint itemInstanceId)
+		{
+			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);
+			DatagramCoding.WritePlayerEventBlockHeader(cmd, EventBlock.Type.ITEM_AUTO_STACK);
+			Bitstream.PutCompressedUint(cmd, itemInstanceId);
+			cmd.Flip();
+			_pl_reliable.Send(cmd);
+		}
+
 		public void SetItemState(uint itemInstanceId, uint newState)
 		{
 			Bitstream.Buffer cmd = Bitstream.Buffer.Make(new byte[128]);

@@ -364,6 +364,7 @@ namespace UnityMMO
 
 			for (int i = 0; i < 10; i++)
 			{
+				// no filter here, so can get close.
 				if (nav.GetPoly(tryend, out idx, out y))
 				{
 					Path p = new Path();
