@@ -17,6 +17,7 @@ namespace UnityMMO
 		public float m_MoveSpeed;
 		public float m_MinSpawnTime;
 		public float m_MaxSpawnTime;
+		public float m_OnHitStunTime;
 		public float m_EngageDistance = 1.1f;
 		public uint m_PathCooldown;
 
@@ -43,6 +44,7 @@ namespace UnityMMO
 			m_MoveSpeed = Bitstream.ReadFloat(b);
 			m_MinSpawnTime = Bitstream.ReadFloat(b);
 			m_MaxSpawnTime = Bitstream.ReadFloat(b);
+			m_OnHitStunTime = Bitstream.ReadFloat(b);
 
 			m_Attacks = new AttackDef[Bitstream.ReadCompressedUint(b)];
 			for (int i = 0; i < m_Attacks.Length; i++)
@@ -315,7 +317,18 @@ namespace UnityMMO
 						ok = false;
 				}
 
-				character.Velocity = (1.0f / dt) * move * toTargetNorm;
+				if (dt > 0.0001f)
+				{
+					character.Velocity = (1.0f / dt) * move * toTargetNorm;
+					if (float.IsNaN(character.Velocity.x))
+					{
+						Debug.Log("Aaah is nana " + dt + " " + move + " " + toTargetNorm.x);
+					}
+				}
+				else
+				{
+					Debug.Log("DT = 0? " + dt);
+				}
 
 				SnapToNavMesh(character, d);
 			}
@@ -427,9 +440,11 @@ namespace UnityMMO
 			Data ccd = character.ControllerData as Data;
 			if (ccd != null)
 			{
-				ccd.HitCooldown = 0.30f; // cool down
+				ccd.HitCooldown = m_OnHitStunTime; // cool down
 				ccd.Target = inflictor as ServerCharacter;
 				ccd.CurState = Data.State.ATTACK;
+				character.Velocity = new Vector3(0, 0, 0);
+				character.GotNew = true;
 			}
 		}
 
@@ -481,9 +496,10 @@ namespace UnityMMO
 			float dt = 0.001f * (iteration - d.LastControllerUpdate);
 			d.LastControllerUpdate = iteration;
 
+			character.Velocity = new Vector3(0, 0, 0);
+
 			if (character.Dead)
 			{
-				character.Velocity = new Vector3(0, 0, 0);
 				d.SpawnTimer -= dt;
 				d.CorpseTimer -= dt;
 				if (d.CorpseTimer < 0)
@@ -517,6 +533,8 @@ namespace UnityMMO
 				{
 					d.HitCooldown = 0;
 				}
+				character.Velocity = new Vector3(0, 0, 0);
+				character.GotNew = true;
 				return;
 			}
 
@@ -699,14 +717,6 @@ namespace UnityMMO
 								angle = TurnTowards(character, d, diffNorm, dt);
 							}
 
-							if (diffD > (m_EngageDistance * 1.05f))
-							{
-								Console.WriteLine("Target moved away, getting closer");
-								d.CurrentPath = PlanPathTo(character, d.Target.Position);
-								d.CurState = Data.State.CHASE;
-								break;
-							}
-
 							if (d.AttackTimer > 0)
 							{
 								d.AttackTimer -= dt;
@@ -714,6 +724,14 @@ namespace UnityMMO
 									d.AttackTimer = 0;
 							}
 
+							if (d.AttackTimer <= 0 && diffD > (m_EngageDistance * 1.05f))
+							{
+								Console.WriteLine("Target moved away, getting closer");
+								d.CurrentPath = PlanPathTo(character, d.Target.Position);
+								d.CurState = Data.State.CHASE;
+								break;
+							}
+								
 							if (angle > 0.20f)
 							{
 								if (d.AttackTimer == 0)
@@ -721,10 +739,7 @@ namespace UnityMMO
 									DoAttack(iteration, character, d, d.Target);
 								}
 							}
-							else
-							{
-								Console.WriteLine("Attack state:" + diffD + " angle=" + angle);
-							}
+	
 							break;
 						}
 				}

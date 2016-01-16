@@ -358,7 +358,6 @@ namespace UnityMMO
 		{
 			NavMeshMVP nm = new NavMeshMVP();
 			nm.LoadFromBytes(data);
-			_levelQueries = nm;
 			_navMVP = nm;
 		}
 			
