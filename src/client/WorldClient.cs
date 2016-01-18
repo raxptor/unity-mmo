@@ -140,10 +140,17 @@ namespace UnityMMO
 			}
 		}
 
-		public uint GetPredictedTime()
+
+		private uint _predictedTimeCache = 0;
+
+		public uint GetPredictedTime(bool usecache = true)
 		{
+			if (usecache && _predictedTimeCache != 0)
+				return _predictedTimeCache;
+			
 			TimeSpan ts = DateTime.Now - _startTime;
-			return _startIteration + (uint)(1000.0 * ((double)ts.Ticks / (double)TimeSpan.TicksPerSecond));
+			_predictedTimeCache = _startIteration + (uint)(1000.0 * ((double)ts.Ticks / (double)TimeSpan.TicksPerSecond));
+			return _predictedTimeCache;
 		}
 
 		public uint GetClientTime()
@@ -154,8 +161,7 @@ namespace UnityMMO
 	
 		private void OnServerTimestamp(uint iteration)
 		{
-			// play catch up
-			int diff = (int)iteration - (int)GetPredictedTime();
+			int diff = (int)iteration - (int)GetPredictedTime(false);
 			if (diff > 0)
 			{
 				_startIteration += (uint)diff;
@@ -340,6 +346,8 @@ namespace UnityMMO
 
 		public void Update(float deltaTime)
 		{
+			_predictedTimeCache = 0;
+
 			Packet[] packets = _client.ReadPackets();
 			foreach (Packet p in packets)
 			{
